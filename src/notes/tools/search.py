@@ -1,14 +1,11 @@
 """Search tools for MCP."""
 
-from notes.config import get_config
-from notes.search import SearchIndex
 from notes.server import mcp
+from notes.services import NoteService
 
 
-def _get_index() -> SearchIndex:
-    config = get_config()
-    config.ensure_dirs()
-    return SearchIndex(config.index_dir)
+def _get_service() -> NoteService:
+    return NoteService()
 
 
 @mcp.tool()
@@ -22,8 +19,8 @@ def search_notes(query: str, limit: int = 10) -> str:
     Returns:
         Formatted search results with paths, titles, and relevance scores
     """
-    index = _get_index()
-    results = index.search(query, limit=limit)
+    service = _get_service()
+    results = service.search_notes(query, limit=limit)
 
     if not results:
         return f"No notes found matching '{query}'"

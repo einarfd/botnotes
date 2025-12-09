@@ -1,14 +1,11 @@
 """Tag management tools for MCP."""
 
-from notes.config import get_config
 from notes.server import mcp
-from notes.storage import FilesystemStorage
+from notes.services import NoteService
 
 
-def _get_storage() -> FilesystemStorage:
-    config = get_config()
-    config.ensure_dirs()
-    return FilesystemStorage(config.notes_dir)
+def _get_service() -> NoteService:
+    return NoteService()
 
 
 @mcp.tool()
@@ -18,15 +15,8 @@ def list_tags() -> str:
     Returns:
         A formatted list of all tags with their note counts
     """
-    storage = _get_storage()
-    paths = storage.list_all()
-
-    tag_counts: dict[str, int] = {}
-    for path in paths:
-        note = storage.load(path)
-        if note:
-            for tag in note.tags:
-                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    service = _get_service()
+    tag_counts = service.list_tags()
 
     if not tag_counts:
         return "No tags found."
@@ -50,14 +40,8 @@ def find_by_tag(tag: str) -> str:
     Returns:
         A list of notes with the specified tag
     """
-    storage = _get_storage()
-    paths = storage.list_all()
-
-    matching_notes = []
-    for path in paths:
-        note = storage.load(path)
-        if note and tag in note.tags:
-            matching_notes.append(note)
+    service = _get_service()
+    matching_notes = service.find_by_tag(tag)
 
     if not matching_notes:
         return f"No notes found with tag '{tag}'"

@@ -1,24 +1,11 @@
 """Note CRUD operations as MCP tools."""
 
-from datetime import datetime
-
-from notes.config import get_config
-from notes.models.note import Note
-from notes.search import SearchIndex
 from notes.server import mcp
-from notes.storage import FilesystemStorage
+from notes.services import NoteService
 
 
-def _get_storage() -> FilesystemStorage:
-    config = get_config()
-    config.ensure_dirs()
-    return FilesystemStorage(config.notes_dir)
-
-
-def _get_index() -> SearchIndex:
-    config = get_config()
-    config.ensure_dirs()
-    return SearchIndex(config.index_dir)
+def _get_service() -> NoteService:
+    return NoteService()
 
 
 @mcp.tool()
@@ -34,19 +21,8 @@ def create_note(path: str, title: str, content: str, tags: list[str] | None = No
     Returns:
         Confirmation message with the note path
     """
-    storage = _get_storage()
-    index = _get_index()
-
-    note = Note(
-        path=path,
-        title=title,
-        content=content,
-        tags=tags or [],
-    )
-
-    storage.save(note)
-    index.index_note(note)
-
+    service = _get_service()
+    service.create_note(path=path, title=title, content=content, tags=tags)
     return f"Created note at '{path}'"
 
 
@@ -60,8 +36,8 @@ def read_note(path: str) -> str:
     Returns:
         The note content with metadata, or an error message if not found
     """
-    storage = _get_storage()
-    note = storage.load(path)
+    service = _get_service()
+    note = service.read_note(path)
 
     if note is None:
         return f"Note not found: '{path}'"
@@ -96,25 +72,11 @@ def update_note(
     Returns:
         Confirmation message or error if note not found
     """
-    storage = _get_storage()
-    index = _get_index()
+    service = _get_service()
+    note = service.update_note(path=path, title=title, content=content, tags=tags)
 
-    note = storage.load(path)
     if note is None:
         return f"Note not found: '{path}'"
-
-    # Update fields if provided
-    if title is not None:
-        note.title = title
-    if content is not None:
-        note.content = content
-    if tags is not None:
-        note.tags = tags
-
-    note.updated_at = datetime.now()
-
-    storage.save(note)
-    index.index_note(note)
 
     return f"Updated note at '{path}'"
 
@@ -129,11 +91,9 @@ def delete_note(path: str) -> str:
     Returns:
         Confirmation message or error if note not found
     """
-    storage = _get_storage()
-    index = _get_index()
+    service = _get_service()
 
-    if storage.delete(path):
-        index.remove_note(path)
+    if service.delete_note(path):
         return f"Deleted note at '{path}'"
 
     return f"Note not found: '{path}'"
@@ -146,8 +106,8 @@ def list_notes() -> str:
     Returns:
         A formatted list of all note paths
     """
-    storage = _get_storage()
-    paths = storage.list_all()
+    service = _get_service()
+    paths = service.list_notes()
 
     if not paths:
         return "No notes found."

@@ -41,11 +41,15 @@ def config(temp_dir: Path) -> Config:
 
 @pytest.fixture
 def mock_config(config: Config):
-    """Patch get_config to return test configuration for MCP tool tests."""
+    """Patch _get_service to return NoteService with test configuration for MCP tool tests."""
+    from notes.services import NoteService
+
+    def make_test_service() -> NoteService:
+        return NoteService(config)
+
     with (
-        patch("notes.config.get_config", return_value=config),
-        patch("notes.tools.notes.get_config", return_value=config),
-        patch("notes.tools.search.get_config", return_value=config),
-        patch("notes.tools.tags.get_config", return_value=config),
+        patch("notes.tools.notes._get_service", make_test_service),
+        patch("notes.tools.search._get_service", make_test_service),
+        patch("notes.tools.tags._get_service", make_test_service),
     ):
         yield config
