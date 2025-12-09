@@ -8,10 +8,14 @@ dependencies = [
     "fastmcp>=2.0.0",
     "tantivy>=0.22.0",
     "pydantic>=2.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "jinja2>=3.1.0",
 ]
 
 [project.scripts]
 notes = "notes.server:main"
+notes-web = "notes.web.app:main"
 
 [build-system]
 requires = ["hatchling"]
