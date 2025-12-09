@@ -13,9 +13,27 @@ class FilesystemStorage(StorageBackend):
         self.base_dir = base_dir
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
+    def _sanitize_path(self, path: str) -> str:
+        """Sanitize path to prevent directory traversal.
+
+        Raises:
+            ValueError: If path is empty or attempts directory traversal.
+        """
+        clean = path.strip().lstrip("/")
+        if not clean:
+            raise ValueError("Path cannot be empty")
+
+        # Resolve and verify within base_dir
+        resolved = (self.base_dir / f"{clean}.md").resolve()
+        if not resolved.is_relative_to(self.base_dir.resolve()):
+            raise ValueError(f"Invalid path: {path}")
+
+        return clean
+
     def _path_to_file(self, path: str) -> Path:
         """Convert note path to filesystem path."""
-        return self.base_dir / f"{path}.md"
+        clean = self._sanitize_path(path)
+        return self.base_dir / f"{clean}.md"
 
     def save(self, note: Note) -> None:
         """Save a note to disk."""

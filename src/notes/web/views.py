@@ -103,7 +103,7 @@ def view_note(request: Request, path: str) -> HTMLResponse:
 
 
 @router.get("/notes/{path:path}/edit", response_class=HTMLResponse)
-def edit_note_form(request: Request, path: str) -> HTMLResponse:
+def edit_note_form(request: Request, path: str) -> HTMLResponse | RedirectResponse:
     """Show edit note form."""
     service = _get_service()
     note = service.read_note(path)
