@@ -2,11 +2,15 @@
 
 from fastapi import FastAPI
 
+from notes.web.routes import router
+
 app = FastAPI(
     title="Notes",
     description="AI-friendly note-taking solution",
     version="0.1.0",
 )
+
+app.include_router(router)
 
 
 @app.get("/health")
