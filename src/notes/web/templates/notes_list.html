@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}All Notes - Notes{% endblock %}
+
+{% block content %}
+<div class="search-box">
+    <input type="text" id="search" placeholder="Search notes..."
+           hx-get="/search-results"
+           hx-trigger="keyup changed delay:300ms"
+           hx-target="#notes-list"
+           name="q">
+</div>
+
+<div class="card">
+    <div id="notes-list">
+        {% if notes %}
+            {% for note in notes %}
+            <div class="note-item">
+                <div>
+                    <a href="/notes/{{ note.path }}">{{ note.title }}</a>
+                    <div class="note-path">{{ note.path }}</div>
+                    {% if note.tags %}
+                    <div>
+                        {% for tag in note.tags %}
+                        <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <p>No notes yet.</p>
+                <a href="/new" class="btn">Create your first note</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

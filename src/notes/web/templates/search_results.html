@@ -1,0 +1,21 @@
+{% if notes %}
+    {% for note in notes %}
+    <div class="note-item">
+        <div>
+            <a href="/notes/{{ note.path }}">{{ note.title }}</a>
+            <div class="note-path">{{ note.path }}</div>
+            {% if note.tags %}
+            <div>
+                {% for tag in note.tags %}
+                <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <p>No notes found.</p>
+    </div>
+{% endif %}

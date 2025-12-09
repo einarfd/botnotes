@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Tags - Notes{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Tags</h2>
+    {% if tags %}
+    <div id="tags-list">
+        {% for tag, count in tags %}
+        <div class="note-item">
+            <a href="/tags/{{ tag }}">{{ tag }}</a>
+            <span class="note-path">{{ count }} note{{ 's' if count != 1 else '' }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No tags yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
