@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -36,3 +37,15 @@ def config(temp_dir: Path) -> Config:
         notes_dir=temp_dir / "notes",
         index_dir=temp_dir / "index",
     )
+
+
+@pytest.fixture
+def mock_config(config: Config):
+    """Patch get_config to return test configuration for MCP tool tests."""
+    with (
+        patch("notes.config.get_config", return_value=config),
+        patch("notes.tools.notes.get_config", return_value=config),
+        patch("notes.tools.search.get_config", return_value=config),
+        patch("notes.tools.tags.get_config", return_value=config),
+    ):
+        yield config
