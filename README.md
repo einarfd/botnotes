@@ -24,9 +24,12 @@ Run the web interface:
 
 ```bash
 uv run notes-web
+uv run notes-web --port 3000        # custom port
+uv run notes-web --host 127.0.0.1   # localhost only
+uv run notes-web --no-reload        # disable auto-reload
 ```
 
-Opens at http://localhost:8000 with:
+Opens at http://localhost:8000 (or your custom port) with:
 - Browse and search notes
 - Create, edit, and delete notes
 - Tag-based organization

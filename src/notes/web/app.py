@@ -31,13 +31,21 @@ def health_check() -> dict[str, str]:
 
 def main() -> None:
     """Run the web server."""
+    import argparse
+
     import uvicorn
+
+    parser = argparse.ArgumentParser(description="Run the Notes web server")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8000, help="Port to bind to (default: 8000)")
+    parser.add_argument("--no-reload", action="store_true", help="Disable auto-reload")
+    args = parser.parse_args()
 
     uvicorn.run(
         "notes.web.app:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
+        host=args.host,
+        port=args.port,
+        reload=not args.no_reload,
     )
 
 
