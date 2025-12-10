@@ -17,7 +17,10 @@ def client(config: Config):
     def make_test_service() -> NoteService:
         return NoteService(config)
 
-    with patch("notes.web.routes._get_service", make_test_service):
+    with (
+        patch("notes.web.routes._get_service", make_test_service),
+        patch("notes.web.views._get_service", make_test_service),
+    ):
         yield TestClient(app)
 
 
@@ -232,3 +235,147 @@ class TestTagsAPI:
 
         assert response.status_code == 200
         assert response.json() == []
+
+
+class TestHTMLViews:
+    """Tests for HTML view endpoints."""
+
+    def test_index_page(self, client: TestClient):
+        """Test the index page returns HTML."""
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+    def test_index_shows_notes(self, client: TestClient):
+        """Test index page shows created notes."""
+        client.post("/api/notes", json={"path": "mytest", "title": "My Test", "content": ""})
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "My Test" in response.text
+
+    def test_new_note_form(self, client: TestClient):
+        """Test the new note form page."""
+        response = client.get("/new")
+
+        assert response.status_code == 200
+        assert "Create New Note" in response.text
+
+    def test_create_note_via_form(self, client: TestClient):
+        """Test creating a note via form submission."""
+        response = client.post(
+            "/new",
+            data={"path": "formtest", "title": "Form Test", "tags": "a, b", "content": "Hello"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 303
+        assert response.headers["location"] == "/notes/formtest"
+
+    def test_view_note_page(self, client: TestClient):
+        """Test viewing a note page."""
+        client.post("/api/notes", json={"path": "viewme", "title": "View Me", "content": "Body"})
+
+        response = client.get("/notes/viewme")
+
+        assert response.status_code == 200
+        assert "View Me" in response.text
+        assert "Body" in response.text
+
+    def test_view_note_not_found(self, client: TestClient):
+        """Test viewing a nonexistent note."""
+        response = client.get("/notes/nonexistent")
+
+        assert response.status_code == 404
+
+    def test_edit_note_form(self, client: TestClient):
+        """Test the edit note form page."""
+        client.post("/api/notes", json={"path": "editable", "title": "Editable", "content": ""})
+
+        response = client.get("/notes/editable/edit")
+
+        assert response.status_code == 200
+        assert "Editable" in response.text
+        assert 'method="POST"' in response.text
+
+    def test_edit_note_form_not_found(self, client: TestClient):
+        """Test edit form for nonexistent note redirects."""
+        response = client.get("/notes/nonexistent/edit", follow_redirects=False)
+
+        assert response.status_code == 303
+        assert response.headers["location"] == "/"
+
+    def test_update_note_via_form(self, client: TestClient):
+        """Test updating a note via form submission."""
+        client.post(
+            "/api/notes", json={"path": "updateme", "title": "Original", "content": "Old"}
+        )
+
+        response = client.post(
+            "/notes/updateme",
+            data={"title": "Updated", "tags": "", "content": "New"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 303
+        assert response.headers["location"] == "/notes/updateme"
+
+        # Verify update
+        get_response = client.get("/api/notes/updateme")
+        assert get_response.json()["title"] == "Updated"
+
+    def test_delete_note_via_form(self, client: TestClient):
+        """Test deleting a note via form submission."""
+        client.post("/api/notes", json={"path": "deleteme", "title": "Delete", "content": ""})
+
+        response = client.post("/notes/deleteme/delete", follow_redirects=False)
+
+        assert response.status_code == 303
+        assert response.headers["location"] == "/"
+
+        # Verify deletion
+        get_response = client.get("/api/notes/deleteme")
+        assert get_response.status_code == 404
+
+    def test_tags_page(self, client: TestClient):
+        """Test the tags listing page."""
+        client.post(
+            "/api/notes",
+            json={"path": "tagged", "title": "Tagged", "content": "", "tags": ["mytag"]},
+        )
+
+        response = client.get("/tags")
+
+        assert response.status_code == 200
+        assert "mytag" in response.text
+
+    def test_tag_filter_page(self, client: TestClient):
+        """Test filtering notes by tag."""
+        client.post(
+            "/api/notes",
+            json={"path": "py1", "title": "Python 1", "content": "", "tags": ["python"]},
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "rs1", "title": "Rust 1", "content": "", "tags": ["rust"]},
+        )
+
+        response = client.get("/tags/python")
+
+        assert response.status_code == 200
+        assert "Python 1" in response.text
+        assert "Rust 1" not in response.text
+
+    def test_search_results_partial(self, client: TestClient):
+        """Test the search results htmx partial."""
+        client.post(
+            "/api/notes",
+            json={"path": "searchable", "title": "Searchable", "content": "findme"},
+        )
+
+        response = client.get("/search-results?q=findme")
+
+        assert response.status_code == 200
+        assert "Searchable" in response.text
