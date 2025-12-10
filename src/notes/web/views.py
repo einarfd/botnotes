@@ -97,6 +97,34 @@ def create_note_form(
     return RedirectResponse(url=f"/notes/{path}", status_code=303)
 
 
+# NOTE: Specific routes (/edit, /delete) must come BEFORE the greedy {path:path} routes
+# because {path:path} will match "foo/edit" as a path otherwise.
+
+
+@router.get("/notes/{path:path}/edit", response_class=HTMLResponse, response_model=None)
+def edit_note_form(request: Request, path: str) -> HTMLResponse | RedirectResponse:
+    """Show edit note form."""
+    service = _get_service()
+    note = service.read_note(path)
+
+    if note is None:
+        return RedirectResponse(url="/", status_code=303)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="note_detail.html",
+        context={"note": note, "editing": True},
+    )
+
+
+@router.post("/notes/{path:path}/delete")
+def delete_note_form(path: str) -> RedirectResponse:
+    """Handle delete note form submission."""
+    service = _get_service()
+    service.delete_note(path)
+    return RedirectResponse(url="/", status_code=303)
+
+
 @router.get("/notes/{path:path}", response_class=HTMLResponse)
 def view_note(request: Request, path: str) -> HTMLResponse:
     """View a note."""
@@ -115,22 +143,6 @@ def view_note(request: Request, path: str) -> HTMLResponse:
         request=request,
         name="note_detail.html",
         context={"note": note, "editing": False},
-    )
-
-
-@router.get("/notes/{path:path}/edit", response_class=HTMLResponse, response_model=None)
-def edit_note_form(request: Request, path: str) -> HTMLResponse | RedirectResponse:
-    """Show edit note form."""
-    service = _get_service()
-    note = service.read_note(path)
-
-    if note is None:
-        return RedirectResponse(url="/", status_code=303)
-
-    return templates.TemplateResponse(
-        request=request,
-        name="note_detail.html",
-        context={"note": note, "editing": True},
     )
 
 
@@ -167,14 +179,6 @@ def update_note_form(
             status_code=400,
         )
     return RedirectResponse(url=f"/notes/{path}", status_code=303)
-
-
-@router.post("/notes/{path:path}/delete")
-def delete_note_form(path: str) -> RedirectResponse:
-    """Handle delete note form submission."""
-    service = _get_service()
-    service.delete_note(path)
-    return RedirectResponse(url="/", status_code=303)
 
 
 @router.get("/tags", response_class=HTMLResponse)
