@@ -44,22 +44,31 @@ class SearchResult(BaseModel):
     score: str
 
 
+class FolderContents(BaseModel):
+    """Contents of a folder."""
+
+    notes: list[str]
+    subfolders: list[str]
+
+
 def _get_service() -> NoteService:
     return NoteService()
 
 
 @router.get("/notes")
-def list_notes(folder: str | None = None) -> list[str]:
+def list_notes(folder: str | None = None) -> FolderContents:
     """List note paths.
 
     Args:
-        folder: Optional folder to filter by. If provided, lists only notes
-                in that folder. Empty string lists top-level notes only.
+        folder: Optional folder to filter by. If not provided, returns all notes
+                with no subfolder info. Empty string lists top-level only.
     """
     service = _get_service()
     if folder is not None:
-        return service.list_notes_in_folder(folder)
-    return service.list_notes()
+        contents = service.list_notes_in_folder(folder)
+        return FolderContents(notes=contents["notes"], subfolders=contents["subfolders"])
+    # No folder filter - return all notes, no subfolders
+    return FolderContents(notes=service.list_notes(), subfolders=[])
 
 
 @router.get("/notes/{path:path}")

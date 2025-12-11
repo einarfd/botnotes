@@ -224,12 +224,12 @@ def view_tag(request: Request, tag: str) -> HTMLResponse:
 
 @router.get("/folder", response_class=HTMLResponse)
 def view_top_level_folder(request: Request) -> HTMLResponse:
-    """Show top-level notes only."""
+    """Show top-level notes and subfolders."""
     service = _get_service()
-    paths = service.list_notes_in_folder("")
+    contents = service.list_notes_in_folder("")
 
     notes = []
-    for path in paths:
+    for path in contents["notes"]:
         note = service.read_note(path)
         if note:
             notes.append(note)
@@ -239,6 +239,7 @@ def view_top_level_folder(request: Request) -> HTMLResponse:
         name="folder_view.html",
         context={
             "notes": notes,
+            "subfolders": contents["subfolders"],
             "folder": "",
             "breadcrumbs": [],
         },
@@ -247,12 +248,12 @@ def view_top_level_folder(request: Request) -> HTMLResponse:
 
 @router.get("/folder/{path:path}", response_class=HTMLResponse)
 def view_folder(request: Request, path: str) -> HTMLResponse:
-    """Show notes in a folder."""
+    """Show notes and subfolders in a folder."""
     service = _get_service()
-    paths = service.list_notes_in_folder(path)
+    contents = service.list_notes_in_folder(path)
 
     notes = []
-    for note_path in paths:
+    for note_path in contents["notes"]:
         note = service.read_note(note_path)
         if note:
             notes.append(note)
@@ -262,6 +263,7 @@ def view_folder(request: Request, path: str) -> HTMLResponse:
         name="folder_view.html",
         context={
             "notes": notes,
+            "subfolders": contents["subfolders"],
             "folder": path,
             "breadcrumbs": _build_breadcrumbs(path),
         },

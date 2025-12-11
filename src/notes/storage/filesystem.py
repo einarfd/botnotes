@@ -66,16 +66,36 @@ class FilesystemStorage(StorageBackend):
             paths.append(path)
         return sorted(paths)
 
-    def list_by_prefix(self, prefix: str) -> list[str]:
-        """List note paths within a folder.
+    def list_by_prefix(self, prefix: str) -> dict[str, list[str]]:
+        """List notes and subfolders within a folder.
 
         Args:
-            prefix: Folder path. Empty string = top-level notes only.
+            prefix: Folder path. Empty string = top-level only.
+
+        Returns:
+            Dict with 'notes' (direct notes) and 'subfolders' (immediate subfolders).
         """
         prefix = prefix.strip().strip("/")
         paths = self.list_all()
+
+        notes = []
+        subfolders_set: set[str] = set()
+
         if not prefix:
-            # Top-level only: notes without "/" in path
-            return [p for p in paths if "/" not in p]
-        # Notes that start with prefix/ or exactly match prefix
-        return [p for p in paths if p.startswith(prefix + "/") or p == prefix]
+            # Top-level
+            for p in paths:
+                if "/" not in p:
+                    notes.append(p)
+                else:
+                    subfolders_set.add(p.split("/")[0])
+        else:
+            prefix_slash = prefix + "/"
+            for p in paths:
+                if p.startswith(prefix_slash):
+                    remainder = p[len(prefix_slash):]
+                    if "/" not in remainder:
+                        notes.append(p)
+                    else:
+                        subfolders_set.add(prefix_slash + remainder.split("/")[0])
+
+        return {"notes": sorted(notes), "subfolders": sorted(subfolders_set)}

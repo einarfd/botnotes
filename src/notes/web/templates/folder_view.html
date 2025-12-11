@@ -16,10 +16,22 @@
 </div>
 
 <div class="card">
-    <h2>{% if folder %}{{ folder }}{% else %}Top-level Notes{% endif %}</h2>
+    <h2>{% if folder %}{{ folder }}{% else %}Top-level{% endif %}</h2>
+
+    {% if subfolders %}
+    <div class="subfolders">
+        <h3>Folders</h3>
+        {% for sf in subfolders %}
+        <div class="folder-item">
+            <a href="/folder/{{ sf }}">📁 {{ sf.split('/')[-1] }}</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div id="notes-list">
         {% if notes %}
+            <h3>Notes</h3>
             {% for note in notes %}
             <div class="note-item">
                 <div>
@@ -35,9 +47,9 @@
                 </div>
             </div>
             {% endfor %}
-        {% else %}
+        {% elif not subfolders %}
             <div class="empty-state">
-                <p>No notes in this folder.</p>
+                <p>No contents in this folder.</p>
                 <a href="/new" class="btn">Create a note</a>
             </div>
         {% endif %}

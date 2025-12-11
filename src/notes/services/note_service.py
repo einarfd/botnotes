@@ -136,14 +136,14 @@ class NoteService:
         """
         return self.storage.list_all()
 
-    def list_notes_in_folder(self, folder: str = "") -> list[str]:
-        """List notes in a specific folder.
+    def list_notes_in_folder(self, folder: str = "") -> dict[str, list[str]]:
+        """List notes and subfolders in a specific folder.
 
         Args:
-            folder: Folder path. Empty string = top-level notes only.
+            folder: Folder path. Empty string = top-level only.
 
         Returns:
-            List of note paths in the folder
+            Dict with 'notes' (direct notes) and 'subfolders' (immediate subfolders).
         """
         return self.storage.list_by_prefix(folder)
 

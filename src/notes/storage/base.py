@@ -29,10 +29,13 @@ class StorageBackend(ABC):
         ...
 
     @abstractmethod
-    def list_by_prefix(self, prefix: str) -> list[str]:
-        """List note paths within a folder.
+    def list_by_prefix(self, prefix: str) -> dict[str, list[str]]:
+        """List notes and subfolders within a folder.
 
         Args:
-            prefix: Folder path. Empty string = top-level notes only.
+            prefix: Folder path. Empty string = top-level only.
+
+        Returns:
+            Dict with 'notes' (direct notes) and 'subfolders' (immediate subfolders).
         """
         ...

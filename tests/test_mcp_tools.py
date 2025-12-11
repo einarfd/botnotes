@@ -234,44 +234,48 @@ class TestListNotesInFolder:
     """Tests for list_notes_in_folder tool."""
 
     def test_list_notes_in_folder_top_level(self, mock_config: Config):
-        """Test listing only top-level notes."""
+        """Test listing top-level notes and subfolders."""
         _create_note(path="top1", title="Top 1", content="")
         _create_note(path="top2", title="Top 2", content="")
         _create_note(path="folder/nested", title="Nested", content="")
 
         result = _list_notes_in_folder("")
 
-        assert "Top-level notes:" in result
-        assert "top1" in result
-        assert "top2" in result
-        assert "folder/nested" not in result
+        assert result["folder"] == "/"
+        assert result["subfolders"] == ["folder"]
+        assert sorted(result["notes"]) == ["top1", "top2"]
 
     def test_list_notes_in_folder(self, mock_config: Config):
-        """Test listing notes in a specific folder."""
+        """Test listing notes and subfolders in a specific folder."""
         _create_note(path="top", title="Top", content="")
         _create_note(path="projects/proj1", title="Proj 1", content="")
         _create_note(path="projects/proj2", title="Proj 2", content="")
+        _create_note(path="projects/sub/note", title="Sub", content="")
         _create_note(path="other/note", title="Other", content="")
 
         result = _list_notes_in_folder("projects")
 
-        assert "Notes in 'projects':" in result
-        assert "projects/proj1" in result
-        assert "projects/proj2" in result
-        assert "other/note" not in result
+        assert result["folder"] == "projects"
+        assert result["subfolders"] == ["projects/sub"]
+        assert result["notes"] == ["projects/proj1", "projects/proj2"]
+        assert "other/note" not in result["notes"]
 
     def test_list_notes_in_folder_empty(self, mock_config: Config):
-        """Test listing from a folder with no notes."""
+        """Test listing from a folder with no contents."""
         _create_note(path="elsewhere/note", title="Note", content="")
 
         result = _list_notes_in_folder("nonexistent")
 
-        assert "No notes found in 'nonexistent'" in result
+        assert result["folder"] == "nonexistent"
+        assert result["subfolders"] == []
+        assert result["notes"] == []
 
-    def test_list_notes_in_folder_no_notes_top_level(self, mock_config: Config):
-        """Test listing top-level when all notes are in folders."""
-        _create_note(path="folder/note", title="Note", content="")
+    def test_list_notes_in_folder_only_subfolders(self, mock_config: Config):
+        """Test listing when folder has only subfolders, no direct notes."""
+        _create_note(path="projects/web/note", title="Note", content="")
 
-        result = _list_notes_in_folder("")
+        result = _list_notes_in_folder("projects")
 
-        assert "No notes found in top-level" in result
+        assert result["folder"] == "projects"
+        assert result["subfolders"] == ["projects/web"]
+        assert result["notes"] == []

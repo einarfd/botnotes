@@ -43,7 +43,7 @@ class TestNotesAPI:
         response = client.get("/api/notes")
 
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json() == {"notes": [], "subfolders": []}
 
     def test_create_note(self, client: TestClient):
         """Test creating a note."""
@@ -136,12 +136,13 @@ class TestNotesAPI:
         response = client.get("/api/notes")
 
         assert response.status_code == 200
-        paths = response.json()
-        assert "note1" in paths
-        assert "note2" in paths
+        data = response.json()
+        assert "note1" in data["notes"]
+        assert "note2" in data["notes"]
+        assert data["subfolders"] == []
 
     def test_list_notes_in_folder(self, client: TestClient):
-        """Test listing notes in a specific folder."""
+        """Test listing notes and subfolders in a specific folder."""
         client.post("/api/notes", json={"path": "top", "title": "Top", "content": ""})
         client.post(
             "/api/notes", json={"path": "projects/proj1", "title": "Proj 1", "content": ""}
@@ -149,16 +150,20 @@ class TestNotesAPI:
         client.post(
             "/api/notes", json={"path": "projects/proj2", "title": "Proj 2", "content": ""}
         )
+        client.post(
+            "/api/notes", json={"path": "projects/sub/note", "title": "Sub", "content": ""}
+        )
         client.post("/api/notes", json={"path": "other/note", "title": "Other", "content": ""})
 
         response = client.get("/api/notes?folder=projects")
 
         assert response.status_code == 200
-        paths = response.json()
-        assert sorted(paths) == ["projects/proj1", "projects/proj2"]
+        data = response.json()
+        assert data["notes"] == ["projects/proj1", "projects/proj2"]
+        assert data["subfolders"] == ["projects/sub"]
 
     def test_list_notes_top_level(self, client: TestClient):
-        """Test listing only top-level notes."""
+        """Test listing top-level notes and subfolders."""
         client.post("/api/notes", json={"path": "top1", "title": "Top 1", "content": ""})
         client.post("/api/notes", json={"path": "top2", "title": "Top 2", "content": ""})
         client.post(
@@ -168,17 +173,18 @@ class TestNotesAPI:
         response = client.get("/api/notes?folder=")
 
         assert response.status_code == 200
-        paths = response.json()
-        assert sorted(paths) == ["top1", "top2"]
+        data = response.json()
+        assert data["notes"] == ["top1", "top2"]
+        assert data["subfolders"] == ["folder"]
 
     def test_list_notes_in_folder_empty(self, client: TestClient):
-        """Test listing from a folder with no notes."""
+        """Test listing from a folder with no contents."""
         client.post("/api/notes", json={"path": "elsewhere/note", "title": "Note", "content": ""})
 
         response = client.get("/api/notes?folder=nonexistent")
 
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json() == {"notes": [], "subfolders": []}
 
 
 class TestSearchAPI:
@@ -421,11 +427,11 @@ class TestHTMLViews:
         assert "Searchable" in response.text
 
     def test_folder_view_top_level(self, client: TestClient):
-        """Test viewing top-level notes only."""
+        """Test viewing top-level notes and subfolders."""
         client.post("/api/notes", json={"path": "top1", "title": "Top 1", "content": ""})
         client.post("/api/notes", json={"path": "top2", "title": "Top 2", "content": ""})
         client.post(
-            "/api/notes", json={"path": "folder/nested", "title": "Nested", "content": ""}
+            "/api/notes", json={"path": "myfolder/nested", "title": "Nested", "content": ""}
         )
 
         response = client.get("/folder")
@@ -433,10 +439,11 @@ class TestHTMLViews:
         assert response.status_code == 200
         assert "Top 1" in response.text
         assert "Top 2" in response.text
-        assert "Nested" not in response.text
+        assert "myfolder" in response.text  # Subfolder should appear
+        assert "Nested" not in response.text  # But not the nested note title
 
     def test_folder_view_specific_folder(self, client: TestClient):
-        """Test viewing notes in a specific folder."""
+        """Test viewing notes and subfolders in a specific folder."""
         client.post(
             "/api/notes", json={"path": "root-note", "title": "Root Note", "content": ""}
         )
@@ -446,12 +453,16 @@ class TestHTMLViews:
         client.post(
             "/api/notes", json={"path": "projects/proj2", "title": "Proj 2", "content": ""}
         )
+        client.post(
+            "/api/notes", json={"path": "projects/sub/deep", "title": "Deep", "content": ""}
+        )
 
         response = client.get("/folder/projects")
 
         assert response.status_code == 200
         assert "Proj 1" in response.text
         assert "Proj 2" in response.text
+        assert "sub" in response.text  # Subfolder should appear
         assert "Root Note" not in response.text
 
     def test_folder_view_shows_breadcrumbs(self, client: TestClient):
@@ -467,6 +478,18 @@ class TestHTMLViews:
         assert "projects" in response.text
         assert "web" in response.text
 
+    def test_folder_view_only_subfolders(self, client: TestClient):
+        """Test viewing folder with only subfolders, no direct notes."""
+        client.post(
+            "/api/notes", json={"path": "projects/web/note", "title": "Note", "content": ""}
+        )
+
+        response = client.get("/folder/projects")
+
+        assert response.status_code == 200
+        assert "web" in response.text
+        assert "Folders" in response.text
+
     def test_folder_view_empty_folder(self, client: TestClient):
         """Test viewing an empty folder."""
         client.post("/api/notes", json={"path": "elsewhere/note", "title": "Note", "content": ""})
@@ -474,4 +497,4 @@ class TestHTMLViews:
         response = client.get("/folder/empty")
 
         assert response.status_code == 200
-        assert "No notes in this folder" in response.text
+        assert "No contents in this folder" in response.text

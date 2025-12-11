@@ -124,22 +124,21 @@ def list_notes() -> str:
 
 
 @mcp.tool()
-def list_notes_in_folder(folder_path: str = "") -> str:
-    """List notes in a specific folder.
+def list_notes_in_folder(folder_path: str = "") -> dict[str, str | list[str]]:
+    """List notes and subfolders in a specific folder.
 
     Args:
         folder_path: The folder path to list (e.g., "projects" or "projects/myproject").
-                     Empty string lists only top-level notes.
+                     Empty string lists only top-level contents.
 
     Returns:
-        A formatted list of note paths in the folder
+        Dict with folder path, subfolders list, and notes list
     """
     service = _get_service()
-    paths = service.list_notes_in_folder(folder_path)
+    contents = service.list_notes_in_folder(folder_path)
 
-    if not paths:
-        folder_desc = f"'{folder_path}'" if folder_path else "top-level"
-        return f"No notes found in {folder_desc}"
-
-    header = f"Notes in '{folder_path}':" if folder_path else "Top-level notes:"
-    return header + "\n" + "\n".join(f"  - {p}" for p in paths)
+    return {
+        "folder": folder_path or "/",
+        "subfolders": contents["subfolders"],
+        "notes": contents["notes"],
+    }

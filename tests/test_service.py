@@ -199,33 +199,36 @@ class TestNoteServiceListInFolder:
     """Tests for NoteService.list_notes_in_folder."""
 
     def test_list_notes_in_folder_top_level(self, config: Config):
-        """Test listing only top-level notes."""
+        """Test listing top-level notes and subfolders."""
         service = NoteService(config)
         service.create_note(path="top1", title="Top 1", content="")
         service.create_note(path="top2", title="Top 2", content="")
         service.create_note(path="folder/nested", title="Nested", content="")
 
-        paths = service.list_notes_in_folder("")
+        result = service.list_notes_in_folder("")
 
-        assert sorted(paths) == ["top1", "top2"]
+        assert result["notes"] == ["top1", "top2"]
+        assert result["subfolders"] == ["folder"]
 
     def test_list_notes_in_folder(self, config: Config):
-        """Test listing notes in a specific folder."""
+        """Test listing notes and subfolders in a specific folder."""
         service = NoteService(config)
         service.create_note(path="top", title="Top", content="")
         service.create_note(path="projects/proj1", title="Proj 1", content="")
         service.create_note(path="projects/proj2", title="Proj 2", content="")
+        service.create_note(path="projects/sub/note", title="Sub", content="")
         service.create_note(path="other/note", title="Other", content="")
 
-        paths = service.list_notes_in_folder("projects")
+        result = service.list_notes_in_folder("projects")
 
-        assert sorted(paths) == ["projects/proj1", "projects/proj2"]
+        assert result["notes"] == ["projects/proj1", "projects/proj2"]
+        assert result["subfolders"] == ["projects/sub"]
 
     def test_list_notes_in_folder_empty_result(self, config: Config):
-        """Test listing from a folder with no notes."""
+        """Test listing from a folder with no notes or subfolders."""
         service = NoteService(config)
         service.create_note(path="elsewhere/note", title="Note", content="")
 
-        paths = service.list_notes_in_folder("nonexistent")
+        result = service.list_notes_in_folder("nonexistent")
 
-        assert paths == []
+        assert result == {"notes": [], "subfolders": []}
