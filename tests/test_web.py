@@ -140,6 +140,46 @@ class TestNotesAPI:
         assert "note1" in paths
         assert "note2" in paths
 
+    def test_list_notes_in_folder(self, client: TestClient):
+        """Test listing notes in a specific folder."""
+        client.post("/api/notes", json={"path": "top", "title": "Top", "content": ""})
+        client.post(
+            "/api/notes", json={"path": "projects/proj1", "title": "Proj 1", "content": ""}
+        )
+        client.post(
+            "/api/notes", json={"path": "projects/proj2", "title": "Proj 2", "content": ""}
+        )
+        client.post("/api/notes", json={"path": "other/note", "title": "Other", "content": ""})
+
+        response = client.get("/api/notes?folder=projects")
+
+        assert response.status_code == 200
+        paths = response.json()
+        assert sorted(paths) == ["projects/proj1", "projects/proj2"]
+
+    def test_list_notes_top_level(self, client: TestClient):
+        """Test listing only top-level notes."""
+        client.post("/api/notes", json={"path": "top1", "title": "Top 1", "content": ""})
+        client.post("/api/notes", json={"path": "top2", "title": "Top 2", "content": ""})
+        client.post(
+            "/api/notes", json={"path": "folder/nested", "title": "Nested", "content": ""}
+        )
+
+        response = client.get("/api/notes?folder=")
+
+        assert response.status_code == 200
+        paths = response.json()
+        assert sorted(paths) == ["top1", "top2"]
+
+    def test_list_notes_in_folder_empty(self, client: TestClient):
+        """Test listing from a folder with no notes."""
+        client.post("/api/notes", json={"path": "elsewhere/note", "title": "Note", "content": ""})
+
+        response = client.get("/api/notes?folder=nonexistent")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
 
 class TestSearchAPI:
     """Tests for search API."""

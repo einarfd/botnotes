@@ -49,9 +49,16 @@ def _get_service() -> NoteService:
 
 
 @router.get("/notes")
-def list_notes() -> list[str]:
-    """List all note paths."""
+def list_notes(folder: str | None = None) -> list[str]:
+    """List note paths.
+
+    Args:
+        folder: Optional folder to filter by. If provided, lists only notes
+                in that folder. Empty string lists top-level notes only.
+    """
     service = _get_service()
+    if folder is not None:
+        return service.list_notes_in_folder(folder)
     return service.list_notes()
 
 
