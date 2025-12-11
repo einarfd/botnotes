@@ -1,7 +1,14 @@
 """Integration tests for MCP tools."""
 
 from notes.config import Config
-from notes.tools.notes import create_note, delete_note, list_notes, read_note, update_note
+from notes.tools.notes import (
+    create_note,
+    delete_note,
+    list_notes,
+    list_notes_in_folder,
+    read_note,
+    update_note,
+)
 from notes.tools.search import search_notes
 from notes.tools.tags import find_by_tag, list_tags
 
@@ -11,6 +18,7 @@ _read_note = read_note.fn
 _update_note = update_note.fn
 _delete_note = delete_note.fn
 _list_notes = list_notes.fn
+_list_notes_in_folder = list_notes_in_folder.fn
 _search_notes = search_notes.fn
 _list_tags = list_tags.fn
 _find_by_tag = find_by_tag.fn
@@ -220,3 +228,50 @@ class TestFindByTag:
         result = _find_by_tag("nonexistent")
 
         assert "No notes found with tag 'nonexistent'" in result
+
+
+class TestListNotesInFolder:
+    """Tests for list_notes_in_folder tool."""
+
+    def test_list_notes_in_folder_top_level(self, mock_config: Config):
+        """Test listing only top-level notes."""
+        _create_note(path="top1", title="Top 1", content="")
+        _create_note(path="top2", title="Top 2", content="")
+        _create_note(path="folder/nested", title="Nested", content="")
+
+        result = _list_notes_in_folder("")
+
+        assert "Top-level notes:" in result
+        assert "top1" in result
+        assert "top2" in result
+        assert "folder/nested" not in result
+
+    def test_list_notes_in_folder(self, mock_config: Config):
+        """Test listing notes in a specific folder."""
+        _create_note(path="top", title="Top", content="")
+        _create_note(path="projects/proj1", title="Proj 1", content="")
+        _create_note(path="projects/proj2", title="Proj 2", content="")
+        _create_note(path="other/note", title="Other", content="")
+
+        result = _list_notes_in_folder("projects")
+
+        assert "Notes in 'projects':" in result
+        assert "projects/proj1" in result
+        assert "projects/proj2" in result
+        assert "other/note" not in result
+
+    def test_list_notes_in_folder_empty(self, mock_config: Config):
+        """Test listing from a folder with no notes."""
+        _create_note(path="elsewhere/note", title="Note", content="")
+
+        result = _list_notes_in_folder("nonexistent")
+
+        assert "No notes found in 'nonexistent'" in result
+
+    def test_list_notes_in_folder_no_notes_top_level(self, mock_config: Config):
+        """Test listing top-level when all notes are in folders."""
+        _create_note(path="folder/note", title="Note", content="")
+
+        result = _list_notes_in_folder("")
+
+        assert "No notes found in top-level" in result
