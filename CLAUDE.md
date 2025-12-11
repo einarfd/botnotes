@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Maintenance Note**: Keep this file updated when adding new commands, components, or architectural changes.
+
 ## Project Overview
 
 Notes is an AI-friendly note-taking application with both MCP server and web UI. It provides CRUD operations for notes, full-text search via Tantivy, and tag-based organization.
