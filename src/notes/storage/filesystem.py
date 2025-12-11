@@ -65,3 +65,17 @@ class FilesystemStorage(StorageBackend):
             path = str(rel_path.with_suffix(""))
             paths.append(path)
         return sorted(paths)
+
+    def list_by_prefix(self, prefix: str) -> list[str]:
+        """List note paths within a folder.
+
+        Args:
+            prefix: Folder path. Empty string = top-level notes only.
+        """
+        prefix = prefix.strip().strip("/")
+        paths = self.list_all()
+        if not prefix:
+            # Top-level only: notes without "/" in path
+            return [p for p in paths if "/" not in p]
+        # Notes that start with prefix/ or exactly match prefix
+        return [p for p in paths if p.startswith(prefix + "/") or p == prefix]

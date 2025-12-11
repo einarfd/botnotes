@@ -27,3 +27,12 @@ class StorageBackend(ABC):
     def list_all(self) -> list[str]:
         """List all note paths."""
         ...
+
+    @abstractmethod
+    def list_by_prefix(self, prefix: str) -> list[str]:
+        """List note paths within a folder.
+
+        Args:
+            prefix: Folder path. Empty string = top-level notes only.
+        """
+        ...
