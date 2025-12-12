@@ -1,5 +1,6 @@
 """Tests for web API routes."""
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -21,6 +22,7 @@ def client(config: Config):
         patch("notes.web.routes._get_service", make_test_service),
         patch("notes.web.views._get_service", make_test_service),
         patch("notes.web.admin._get_service", make_test_service),
+        patch("notes.web.admin.get_config", return_value=config),
     ):
         yield TestClient(app)
 
@@ -562,6 +564,103 @@ class TestAdminViews:
 
         assert response.status_code == 200
         assert 'href="/admin"' in response.text
+
+    def test_admin_page_has_backup_section(self, client: TestClient):
+        """Test that admin page has backup section."""
+        response = client.get("/admin")
+
+        assert response.status_code == 200
+        assert "Backup" in response.text
+        assert "Download Backup" in response.text
+        assert "Import" in response.text
+
+    def test_admin_export(self, client: TestClient):
+        """Test exporting notes as tar.gz archive."""
+        # Create some notes first
+        client.post(
+            "/api/notes",
+            json={"path": "export1", "title": "Export 1", "content": "Content 1"},
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "export2", "title": "Export 2", "content": "Content 2"},
+        )
+
+        response = client.get("/admin/export")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/gzip"
+        assert "notes-backup-" in response.headers.get("content-disposition", "")
+        assert ".tar.gz" in response.headers.get("content-disposition", "")
+        # Verify it's actually a gzip file (starts with gzip magic bytes)
+        assert response.content[:2] == b'\x1f\x8b'
+
+    def test_admin_import_merge(self, client: TestClient, tmp_path: Path):
+        """Test importing notes in merge mode."""
+        import tarfile
+
+        # Create a test archive
+        archive_path = tmp_path / "test-backup.tar.gz"
+        notes_tmp = tmp_path / "notes"
+        notes_tmp.mkdir()
+        (notes_tmp / "imported1.md").write_text("---\ntitle: Imported 1\n---\nContent 1")
+        (notes_tmp / "imported2.md").write_text("---\ntitle: Imported 2\n---\nContent 2")
+
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tar.add(notes_tmp / "imported1.md", arcname="imported1.md")
+            tar.add(notes_tmp / "imported2.md", arcname="imported2.md")
+
+        # Upload the archive
+        with open(archive_path, "rb") as f:
+            response = client.post(
+                "/admin/import",
+                files={"file": ("backup.tar.gz", f, "application/gzip")},
+                data={"replace": "false"},
+            )
+
+        assert response.status_code == 200
+        assert "Import complete" in response.text
+        assert "2 notes" in response.text
+
+        # Verify notes were imported
+        note1 = client.get("/api/notes/imported1")
+        assert note1.status_code == 200
+        assert note1.json()["title"] == "Imported 1"
+
+    def test_admin_import_with_replace(self, client: TestClient, tmp_path: Path):
+        """Test importing notes with replace mode."""
+        import tarfile
+
+        # Create an existing note
+        client.post("/api/notes", json={"path": "existing", "title": "Existing", "content": "Old"})
+
+        # Create a test archive with different note
+        archive_path = tmp_path / "test-backup.tar.gz"
+        notes_tmp = tmp_path / "notes"
+        notes_tmp.mkdir()
+        (notes_tmp / "new.md").write_text("---\ntitle: New Note\n---\nNew content")
+
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tar.add(notes_tmp / "new.md", arcname="new.md")
+
+        # Upload with replace=true
+        with open(archive_path, "rb") as f:
+            response = client.post(
+                "/admin/import",
+                files={"file": ("backup.tar.gz", f, "application/gzip")},
+                data={"replace": "true"},
+            )
+
+        assert response.status_code == 200
+        assert "Import complete" in response.text
+
+        # Old note should be gone
+        old = client.get("/api/notes/existing")
+        assert old.status_code == 404
+
+        # New note should exist
+        new = client.get("/api/notes/new")
+        assert new.status_code == 200
 
 
 class TestMarkdownRendering:

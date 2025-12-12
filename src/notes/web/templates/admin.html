@@ -7,6 +7,43 @@
     <h2>Administration</h2>
 
     <div class="admin-section">
+        <h3>Backup &amp; Restore</h3>
+        <p>Export all notes to a backup archive or restore from a previous backup.</p>
+
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
+            <div>
+                <h4 style="margin-bottom: 10px;">Export</h4>
+                <a href="/admin/export" class="btn">Download Backup</a>
+            </div>
+
+            <div style="flex: 1; min-width: 300px;">
+                <h4 style="margin-bottom: 10px;">Import</h4>
+                <form method="post" action="/admin/import" enctype="multipart/form-data">
+                    <input type="file" name="file" accept=".tar.gz,.tgz" required style="margin-bottom: 10px; display: block;">
+                    <label style="display: block; margin-bottom: 10px;">
+                        <input type="checkbox" name="replace" value="true">
+                        Replace existing notes (clears all current notes first)
+                    </label>
+                    <button type="submit" class="btn">Import Backup</button>
+                </form>
+            </div>
+        </div>
+
+        {% if import_result %}
+        <div class="success-message" style="margin-top: 15px; padding: 15px; background: #e0ffe0; border: 1px solid #00aa00; border-radius: 4px;">
+            <strong>Import complete!</strong><br>
+            Imported {{ import_result.imported_count }} notes.
+            {% if import_result.skipped_count > 0 %}
+            <br>Skipped {{ import_result.skipped_count }} existing notes.
+            {% endif %}
+            {% if rebuild_result %}
+            <br>Indexed {{ rebuild_result.notes_processed }} notes.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="admin-section" style="margin-top: 30px;">
         <h3>Rebuild Indexes</h3>
         <p>Rebuild the search index and backlinks index from all stored notes.</p>
         <p class="metadata">Use this if indexes are out of sync or corrupted.</p>
