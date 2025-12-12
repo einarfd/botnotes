@@ -57,6 +57,29 @@ def export_notes(notes_dir: Path, output_path: Path | None = None) -> ExportResu
     return ExportResult(path=output_path.resolve(), notes_count=notes_count)
 
 
+def clear_notes(notes_dir: Path) -> int:
+    """Delete all notes from the notes directory.
+
+    Args:
+        notes_dir: Directory containing the notes
+
+    Returns:
+        Number of notes deleted
+    """
+    md_files = list(notes_dir.rglob("*.md"))
+    count = len(md_files)
+
+    for md_file in md_files:
+        md_file.unlink()
+
+    # Clean up empty directories
+    for dir_path in sorted(notes_dir.rglob("*"), reverse=True):
+        if dir_path.is_dir() and not any(dir_path.iterdir()):
+            dir_path.rmdir()
+
+    return count
+
+
 def import_notes(
     notes_dir: Path, archive_path: Path, replace: bool = False
 ) -> ImportResult:

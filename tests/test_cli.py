@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from notes.cli import export_backup, import_backup, main, rebuild_indexes
+from notes.cli import clear_all, export_backup, import_backup, main, rebuild_indexes
 from notes.config import Config
 
 
@@ -149,6 +149,71 @@ class TestImportBackup:
             assert "Skipped" not in captured.out
 
 
+class TestClearAll:
+    """Tests for the clear_all function."""
+
+    def test_clear_all_with_force(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path
+    ):
+        """Test clear with --force skips confirmation."""
+        with (
+            patch("notes.cli.get_config") as mock_config,
+            patch("notes.cli.clear_notes") as mock_clear,
+            patch("notes.cli.NoteService") as mock_service_class,
+        ):
+            mock_config.return_value.notes_dir = tmp_path
+            mock_clear.return_value = 5
+            mock_service = MagicMock()
+            mock_service_class.return_value = mock_service
+
+            clear_all(force=True)
+
+            mock_clear.assert_called_once_with(tmp_path)
+            captured = capsys.readouterr()
+            assert "Clearing all notes..." in captured.out
+            assert "Deleted 5 notes" in captured.out
+            assert "Done!" in captured.out
+
+    def test_clear_all_without_force_confirmed(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path
+    ):
+        """Test clear without --force prompts and proceeds on 'yes'."""
+        with (
+            patch("notes.cli.get_config") as mock_config,
+            patch("notes.cli.clear_notes") as mock_clear,
+            patch("notes.cli.NoteService") as mock_service_class,
+            patch("builtins.input", return_value="yes"),
+        ):
+            mock_config.return_value.notes_dir = tmp_path
+            mock_clear.return_value = 3
+            mock_service = MagicMock()
+            mock_service_class.return_value = mock_service
+
+            clear_all(force=False)
+
+            mock_clear.assert_called_once()
+            captured = capsys.readouterr()
+            assert "WARNING" in captured.out
+            assert "Deleted 3 notes" in captured.out
+
+    def test_clear_all_without_force_aborted(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path
+    ):
+        """Test clear without --force aborts on non-'yes' input."""
+        with (
+            patch("notes.cli.get_config") as mock_config,
+            patch("notes.cli.clear_notes") as mock_clear,
+            patch("builtins.input", return_value="no"),
+        ):
+            mock_config.return_value.notes_dir = tmp_path
+
+            clear_all(force=False)
+
+            mock_clear.assert_not_called()
+            captured = capsys.readouterr()
+            assert "Aborted" in captured.out
+
+
 class TestMain:
     """Tests for the main CLI entry point."""
 
@@ -201,6 +266,24 @@ class TestMain:
         """Test that import command requires archive argument."""
         with patch("sys.argv", ["notes-admin", "import"]), pytest.raises(SystemExit):
             main()
+
+    def test_clear_command(self):
+        """Test that clear command calls clear_all without force."""
+        with (
+            patch("notes.cli.clear_all") as mock_clear,
+            patch("sys.argv", ["notes-admin", "clear"]),
+        ):
+            main()
+            mock_clear.assert_called_once_with(False)
+
+    def test_clear_command_with_force(self):
+        """Test that clear --force calls clear_all with force=True."""
+        with (
+            patch("notes.cli.clear_all") as mock_clear,
+            patch("sys.argv", ["notes-admin", "clear", "--force"]),
+        ):
+            main()
+            mock_clear.assert_called_once_with(True)
 
     def test_no_command_shows_error(self):
         """Test that running without command shows error."""

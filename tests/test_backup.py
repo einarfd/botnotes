@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from notes.backup import export_notes, import_notes
+from notes.backup import clear_notes, export_notes, import_notes
 
 
 @pytest.fixture
@@ -183,3 +183,38 @@ class TestRoundTrip:
         original_nested = (notes_dir / "projects" / "web.md").read_text()
         imported_nested = (empty_notes_dir / "projects" / "web.md").read_text()
         assert original_nested == imported_nested
+
+
+class TestClearNotes:
+    """Tests for clear_notes function."""
+
+    def test_clear_deletes_all_notes(self, notes_dir: Path) -> None:
+        """Test that clear deletes all markdown files."""
+        # Verify notes exist first
+        assert len(list(notes_dir.rglob("*.md"))) == 4
+
+        count = clear_notes(notes_dir)
+
+        assert count == 4
+        assert len(list(notes_dir.rglob("*.md"))) == 0
+
+    def test_clear_removes_empty_directories(self, notes_dir: Path) -> None:
+        """Test that clear removes empty subdirectories."""
+        assert (notes_dir / "projects").is_dir()
+
+        clear_notes(notes_dir)
+
+        assert not (notes_dir / "projects").exists()
+
+    def test_clear_empty_directory(self, empty_notes_dir: Path) -> None:
+        """Test clearing an empty directory returns 0."""
+        count = clear_notes(empty_notes_dir)
+
+        assert count == 0
+
+    def test_clear_preserves_notes_directory(self, notes_dir: Path) -> None:
+        """Test that the notes directory itself is preserved."""
+        clear_notes(notes_dir)
+
+        assert notes_dir.exists()
+        assert notes_dir.is_dir()

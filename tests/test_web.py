@@ -662,6 +662,41 @@ class TestAdminViews:
         new = client.get("/api/notes/new")
         assert new.status_code == 200
 
+    def test_admin_page_has_danger_zone(self, client: TestClient):
+        """Test that admin page has danger zone section."""
+        response = client.get("/admin")
+
+        assert response.status_code == 200
+        assert "Danger Zone" in response.text
+        assert "Clear All Notes" in response.text
+
+    def test_admin_clear(self, client: TestClient):
+        """Test clearing all notes via admin."""
+        # Create some notes first
+        client.post(
+            "/api/notes",
+            json={"path": "clear1", "title": "Clear 1", "content": "Content 1"},
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "clear2", "title": "Clear 2", "content": "Content 2"},
+        )
+
+        # Verify notes exist
+        assert client.get("/api/notes/clear1").status_code == 200
+        assert client.get("/api/notes/clear2").status_code == 200
+
+        # Clear all notes
+        response = client.post("/admin/clear")
+
+        assert response.status_code == 200
+        assert "Cleared" in response.text
+        assert "2" in response.text
+
+        # Verify notes are gone
+        assert client.get("/api/notes/clear1").status_code == 404
+        assert client.get("/api/notes/clear2").status_code == 404
+
 
 class TestMarkdownRendering:
     """Tests for markdown rendering in views."""

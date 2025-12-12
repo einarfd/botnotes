@@ -50,6 +50,10 @@ uv run notes-admin export backup.tar.gz      # custom filename
 # Import notes from backup archive
 uv run notes-admin import backup.tar.gz              # merge with existing
 uv run notes-admin import backup.tar.gz --replace    # replace all notes
+
+# Delete all notes
+uv run notes-admin clear              # prompts for confirmation
+uv run notes-admin clear --force      # skip confirmation
 ```
 
 ## MCP Client Setup

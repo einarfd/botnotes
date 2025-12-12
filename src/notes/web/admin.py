@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from notes.backup import export_notes, import_notes
+from notes.backup import clear_notes, export_notes, import_notes
 from notes.config import get_config
 from notes.services import NoteService
 
@@ -91,3 +91,20 @@ async def import_backup(
         )
     finally:
         tmp_path.unlink(missing_ok=True)
+
+
+@router.post("/clear", response_class=HTMLResponse)
+def clear_all_notes(request: Request) -> HTMLResponse:
+    """Delete all notes."""
+    config = get_config()
+    count = clear_notes(config.notes_dir)
+
+    # Rebuild indexes (they'll be empty)
+    service = _get_service()
+    service.rebuild_indexes()
+
+    return templates.TemplateResponse(
+        request,
+        "admin.html",
+        {"clear_result": count},
+    )

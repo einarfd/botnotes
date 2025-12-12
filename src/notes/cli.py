@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from notes.backup import export_notes, import_notes
+from notes.backup import clear_notes, export_notes, import_notes
 from notes.config import get_config
 from notes.services import NoteService
 
@@ -49,6 +49,28 @@ def import_backup(archive: str, replace: bool) -> None:
     print(f"Indexed {rebuild_result.notes_processed} notes.")
 
 
+def clear_all(force: bool) -> None:
+    """Clear all notes."""
+    config = get_config()
+
+    if not force:
+        print("WARNING: This will delete ALL notes permanently!")
+        response = input("Type 'yes' to confirm: ")
+        if response.strip().lower() != "yes":
+            print("Aborted.")
+            return
+
+    print("Clearing all notes...")
+    count = clear_notes(config.notes_dir)
+    print(f"Deleted {count} notes.")
+
+    # Rebuild indexes (they'll be empty)
+    print("Rebuilding indexes...")
+    service = NoteService()
+    service.rebuild_indexes()
+    print("Done!")
+
+
 def main() -> None:
     """Main entry point for notes-admin CLI."""
     parser = argparse.ArgumentParser(
@@ -77,6 +99,14 @@ def main() -> None:
         help="Replace existing notes instead of merging",
     )
 
+    # Clear command
+    clear_parser = subparsers.add_parser("clear", help="Delete all notes")
+    clear_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
+
     args = parser.parse_args()
 
     if args.command == "rebuild":
@@ -85,6 +115,8 @@ def main() -> None:
         export_backup(args.output)
     elif args.command == "import":
         import_backup(args.archive, args.replace)
+    elif args.command == "clear":
+        clear_all(args.force)
 
 
 if __name__ == "__main__":
