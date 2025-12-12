@@ -35,6 +35,23 @@ Opens at http://localhost:8000 (or your custom port) with:
 - Tag-based organization
 - REST API at `/api/*`
 
+### Admin CLI
+
+Command-line tools for administration:
+
+```bash
+# Rebuild search and backlinks indexes
+uv run notes-admin rebuild
+
+# Export all notes to backup archive
+uv run notes-admin export                    # → notes-backup-YYYY-MM-DD.tar.gz
+uv run notes-admin export backup.tar.gz      # custom filename
+
+# Import notes from backup archive
+uv run notes-admin import backup.tar.gz              # merge with existing
+uv run notes-admin import backup.tar.gz --replace    # replace all notes
+```
+
 ## MCP Client Setup
 
 ### Claude Desktop
