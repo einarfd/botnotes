@@ -491,3 +491,63 @@ class TestNoteServiceBacklinks:
         # Line 2 would be the blank line, so second link is on line 2 (after split)
         # Actually, "Line 1: [[target]]\nLine 3: [[target|Display]]" has 2 lines
         assert 2 in backlinks[0].line_numbers
+
+
+class TestNoteServiceRebuild:
+    """Tests for NoteService.rebuild_indexes."""
+
+    def test_rebuild_indexes_empty(self, config: Config):
+        """Test rebuilding indexes when no notes exist."""
+        service = NoteService(config)
+
+        result = service.rebuild_indexes()
+
+        assert result.notes_processed == 0
+        assert result.search_index_rebuilt is True
+        assert result.backlinks_index_rebuilt is True
+
+    def test_rebuild_indexes_with_notes(self, config: Config):
+        """Test rebuilding indexes with existing notes."""
+        service = NoteService(config)
+        service.create_note(path="note1", title="Note 1", content="Content 1")
+        service.create_note(path="note2", title="Note 2", content="Content 2")
+        service.create_note(path="note3", title="Note 3", content="Content 3")
+
+        result = service.rebuild_indexes()
+
+        assert result.notes_processed == 3
+        assert result.search_index_rebuilt is True
+        assert result.backlinks_index_rebuilt is True
+
+    def test_rebuild_indexes_restores_search(self, config: Config):
+        """Test that rebuild restores search functionality."""
+        service = NoteService(config)
+        service.create_note(path="python", title="Python Guide", content="Learn Python")
+
+        # Clear the search index manually
+        service.index.clear()
+        assert service.search_notes("Python") == []
+
+        # Rebuild should restore it
+        service.rebuild_indexes()
+
+        results = service.search_notes("Python")
+        assert len(results) == 1
+        assert results[0]["path"] == "python"
+
+    def test_rebuild_indexes_restores_backlinks(self, config: Config):
+        """Test that rebuild restores backlinks."""
+        service = NoteService(config)
+        service.create_note(path="target", title="Target", content="Target content")
+        service.create_note(path="source", title="Source", content="Link to [[target]]")
+
+        # Clear the backlinks index manually
+        service.backlinks.clear()
+        assert service.get_backlinks("target") == []
+
+        # Rebuild should restore it
+        service.rebuild_indexes()
+
+        backlinks = service.get_backlinks("target")
+        assert len(backlinks) == 1
+        assert backlinks[0].source_path == "source"

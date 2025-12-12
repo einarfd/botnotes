@@ -27,6 +27,15 @@ class DeleteResult:
     backlinks_warning: list[BacklinkInfo] = field(default_factory=list)
 
 
+@dataclass
+class RebuildResult:
+    """Result of a rebuild operation."""
+
+    notes_processed: int
+    search_index_rebuilt: bool
+    backlinks_index_rebuilt: bool
+
+
 class NoteService:
     """Service layer for note operations.
 
@@ -317,3 +326,31 @@ class NoteService:
             List of BacklinkInfo objects with source_path and line_numbers
         """
         return self.backlinks.get_backlinks(path)
+
+    def rebuild_indexes(self) -> RebuildResult:
+        """Rebuild both search and backlinks indexes from all stored notes.
+
+        This is useful when:
+        - Index files become corrupted
+        - Code changes affect indexing logic
+        - Notes were added outside the app
+
+        Returns:
+            RebuildResult with number of notes processed and rebuild status
+        """
+        # Load all notes from storage
+        all_notes: list[Note] = []
+        for path in self.storage.list_all():
+            note = self.storage.load(path)
+            if note:
+                all_notes.append(note)
+
+        # Rebuild both indexes
+        self.index.rebuild(all_notes)
+        self.backlinks.rebuild(all_notes)
+
+        return RebuildResult(
+            notes_processed=len(all_notes),
+            search_index_rebuilt=True,
+            backlinks_index_rebuilt=True,
+        )
