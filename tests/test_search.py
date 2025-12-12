@@ -1,9 +1,11 @@
 """Tests for search functionality."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
 from notes.models.note import Note
 from notes.search import SearchIndex
+from notes.search.tantivy_index import _preprocess_date_math
 
 
 def test_index_and_search(search_index: SearchIndex):
@@ -108,4 +110,88 @@ def test_search_by_date_range(search_index: SearchIndex):
 
     # Search for all notes (any date)
     results = search_index.search("created_at:[2020-01-01T00:00:00Z TO *]")
+    assert len(results) == 2
+
+
+class TestDateMathPreprocessing:
+    """Tests for date math preprocessing."""
+
+    def test_now_replacement(self):
+        """Test 'now' is replaced with current timestamp."""
+        with patch("notes.search.tantivy_index.datetime") as mock_dt:
+            mock_dt.now.return_value = datetime(2024, 6, 15, 12, 0, 0)
+            result = _preprocess_date_math("created_at:[now TO *]")
+            assert "2024-06-15T12:00:00Z" in result
+
+    def test_now_minus_days(self):
+        """Test 'now-7d' is replaced correctly."""
+        with patch("notes.search.tantivy_index.datetime") as mock_dt:
+            mock_dt.now.return_value = datetime(2024, 6, 15, 12, 0, 0)
+            result = _preprocess_date_math("created_at:[now-7d TO now]")
+            assert "2024-06-08T12:00:00Z" in result
+            assert "2024-06-15T12:00:00Z" in result
+
+    def test_now_plus_weeks(self):
+        """Test 'now+2w' is replaced correctly."""
+        with patch("notes.search.tantivy_index.datetime") as mock_dt:
+            mock_dt.now.return_value = datetime(2024, 6, 15, 12, 0, 0)
+            result = _preprocess_date_math("updated_at:[now TO now+2w]")
+            assert "2024-06-15T12:00:00Z" in result
+            assert "2024-06-29T12:00:00Z" in result
+
+    def test_explicit_date(self):
+        """Test explicit date YYYY-MM-DD is converted to ISO."""
+        result = _preprocess_date_math("created_at:[2024-01-15 TO 2024-02-15]")
+        assert "2024-01-15T00:00:00Z" in result
+        assert "2024-02-15T00:00:00Z" in result
+
+    def test_explicit_date_with_math(self):
+        """Test explicit date with arithmetic."""
+        result = _preprocess_date_math("created_at:[2024-01-01 TO 2024-01-01+1M]")
+        assert "2024-01-01T00:00:00Z" in result
+        assert "2024-01-31T00:00:00Z" in result  # +30 days
+
+    def test_mixed_query(self):
+        """Test date math mixed with text query."""
+        with patch("notes.search.tantivy_index.datetime") as mock_dt:
+            mock_dt.now.return_value = datetime(2024, 6, 15, 12, 0, 0)
+            result = _preprocess_date_math("python AND created_at:[now-1M TO now]")
+            assert "python AND" in result
+            assert "2024-05-16T12:00:00Z" in result  # now - 30 days
+
+    def test_no_date_expressions(self):
+        """Test query without date expressions is unchanged."""
+        query = "python tutorial"
+        result = _preprocess_date_math(query)
+        assert result == query
+
+
+def test_search_with_date_math(search_index: SearchIndex):
+    """Test searching with date math expressions."""
+    # Create notes with specific dates
+    recent_note = Note(
+        path="recent",
+        title="Recent Note",
+        content="Created recently",
+        created_at=datetime.now() - timedelta(days=3),
+        updated_at=datetime.now() - timedelta(days=3),
+    )
+    old_note = Note(
+        path="old",
+        title="Old Note",
+        content="Created long ago",
+        created_at=datetime.now() - timedelta(days=30),
+        updated_at=datetime.now() - timedelta(days=30),
+    )
+
+    search_index.index_note(recent_note)
+    search_index.index_note(old_note)
+
+    # Search for notes from last 7 days
+    results = search_index.search("created_at:[now-7d TO now]")
+    assert len(results) == 1
+    assert results[0]["path"] == "recent"
+
+    # Search for notes from last 60 days (should get both)
+    results = search_index.search("created_at:[now-60d TO now]")
     assert len(results) == 2

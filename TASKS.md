@@ -14,7 +14,7 @@
 - [ ] Improve search with better ranking
 - [x] Add tag-based filtering
 - [x] Implement path-based navigation (list notes in folder)
-- [ ] Add search by date range
+- [x] Add search by date range (with date math: now-7d, 2024-01-01+1M)
 - [ ] Support markdown links between notes
 
 ## Phase 3: AI Optimization

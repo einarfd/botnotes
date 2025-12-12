@@ -1,10 +1,78 @@
 """Tantivy-based full-text search index."""
 
+import re
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import tantivy
 
 from notes.models.note import Note
+
+
+def _parse_duration(duration: str) -> timedelta:
+    """Parse a duration string like '7d', '2w', '1M', '1y' into a timedelta."""
+    match = re.match(r"(\d+)([dwMy])", duration)
+    if not match:
+        raise ValueError(f"Invalid duration: {duration}")
+
+    amount = int(match.group(1))
+    unit = match.group(2)
+
+    if unit == "d":
+        return timedelta(days=amount)
+    elif unit == "w":
+        return timedelta(weeks=amount)
+    elif unit == "M":
+        return timedelta(days=amount * 30)  # Approximate month
+    elif unit == "y":
+        return timedelta(days=amount * 365)  # Approximate year
+    else:
+        raise ValueError(f"Unknown duration unit: {unit}")
+
+
+def _preprocess_date_math(query: str) -> str:
+    """Preprocess date math expressions in the query.
+
+    Supports:
+        - now: current timestamp
+        - now-7d, now+1M: relative to now
+        - 2024-01-15: short date format
+        - 2024-01-15-7d, 2024-01-15+1M: relative to explicit date
+
+    Duration units: d (days), w (weeks), M (months), y (years)
+    """
+    now = datetime.now()
+
+    def replace_date_expr(match: re.Match[str]) -> str:
+        expr = match.group(0)
+
+        # Parse the base date
+        if expr.startswith("now"):
+            base_date = now
+            remainder = expr[3:]
+        else:
+            # Try to parse YYYY-MM-DD format
+            date_match = re.match(r"(\d{4}-\d{2}-\d{2})", expr)
+            if date_match:
+                base_date = datetime.strptime(date_match.group(1), "%Y-%m-%d")
+                remainder = expr[len(date_match.group(1)) :]
+            else:
+                return expr  # Not a date expression we recognize
+
+        # Apply arithmetic if present
+        if remainder:
+            arith_match = re.match(r"([+-])(\d+[dwMy])", remainder)
+            if arith_match:
+                op = arith_match.group(1)
+                duration = _parse_duration(arith_match.group(2))
+                base_date = base_date + duration if op == "+" else base_date - duration
+
+        return base_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # Pattern matches: now, now+/-duration, YYYY-MM-DD, YYYY-MM-DD+/-duration
+    # Negative lookahead (?!T) prevents matching dates already in ISO format
+    pattern = r"now(?:[+-]\d+[dwMy])?|\d{4}-\d{2}-\d{2}(?![T\d])(?:[+-]\d+[dwMy])?"
+    return re.sub(pattern, replace_date_expr, query)
 
 
 class SearchIndex:
@@ -55,8 +123,10 @@ class SearchIndex:
         """Search for notes matching the query."""
         self.index.reload()
         searcher = self.index.searcher()
+        # Preprocess date math expressions (now, now-7d, 2024-01-01+1M, etc.)
+        processed_query = _preprocess_date_math(query)
         parsed_query = self.index.parse_query(
-            query, ["title", "content", "tags", "created_at", "updated_at"]
+            processed_query, ["title", "content", "tags", "created_at", "updated_at"]
         )
 
         search_result = searcher.search(parsed_query, limit=limit)
