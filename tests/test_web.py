@@ -539,3 +539,93 @@ class TestAdminViews:
 
         assert response.status_code == 200
         assert 'href="/admin"' in response.text
+
+
+class TestMarkdownRendering:
+    """Tests for markdown rendering in views."""
+
+    def test_view_note_renders_markdown(self, client: TestClient):
+        """Test that note content is rendered as markdown."""
+        client.post(
+            "/api/notes",
+            json={
+                "path": "mdtest",
+                "title": "Markdown Test",
+                "content": "# Heading\n\n**Bold** and *italic*.",
+            },
+        )
+
+        response = client.get("/notes/mdtest")
+
+        assert response.status_code == 200
+        assert "<h1>Heading</h1>" in response.text
+        assert "<strong>Bold</strong>" in response.text
+        assert "<em>italic</em>" in response.text
+
+    def test_view_note_renders_wiki_links(self, client: TestClient):
+        """Test that wiki links are rendered as HTML links."""
+        client.post(
+            "/api/notes",
+            json={
+                "path": "wikitest",
+                "title": "Wiki Test",
+                "content": "See [[other/note]] for more.",
+            },
+        )
+
+        response = client.get("/notes/wikitest")
+
+        assert response.status_code == 200
+        assert 'href="/notes/other/note"' in response.text
+        assert 'class="wiki-link"' in response.text
+
+    def test_view_note_renders_wiki_link_with_display(self, client: TestClient):
+        """Test wiki link with display text."""
+        client.post(
+            "/api/notes",
+            json={
+                "path": "wiki2",
+                "title": "Wiki Display",
+                "content": "See [[path|Custom Text]].",
+            },
+        )
+
+        response = client.get("/notes/wiki2")
+
+        assert response.status_code == 200
+        assert 'href="/notes/path"' in response.text
+        assert ">Custom Text</a>" in response.text
+
+    def test_edit_form_shows_raw_markdown(self, client: TestClient):
+        """Test that edit form shows raw markdown, not rendered."""
+        client.post(
+            "/api/notes",
+            json={
+                "path": "rawedit",
+                "title": "Raw Edit",
+                "content": "# Heading\n\n[[wiki/link]]",
+            },
+        )
+
+        response = client.get("/notes/rawedit/edit")
+
+        assert response.status_code == 200
+        # The textarea should contain raw markdown
+        assert "# Heading" in response.text
+        assert "[[wiki/link]]" in response.text
+        # The raw content should be in the textarea, not as rendered HTML
+        html = response.text
+        # Find textarea content - it should have the raw markdown
+        assert "<textarea" in html
+
+    def test_rendered_markdown_has_css_class(self, client: TestClient):
+        """Test that rendered content has the correct CSS class."""
+        client.post(
+            "/api/notes",
+            json={"path": "csstest", "title": "CSS Test", "content": "Hello"},
+        )
+
+        response = client.get("/notes/csstest")
+
+        assert response.status_code == 200
+        assert 'class="note-content rendered-markdown"' in response.text

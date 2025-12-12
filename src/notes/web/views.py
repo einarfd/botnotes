@@ -8,10 +8,14 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
 from notes.services import NoteService
+from notes.web.markdown import render_markdown
 
 router = APIRouter(tags=["views"])
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
+# Register custom Jinja2 filter for markdown rendering
+templates.env.filters["render_markdown"] = render_markdown
 
 
 def _get_service() -> NoteService:

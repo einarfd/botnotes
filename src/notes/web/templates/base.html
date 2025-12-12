@@ -158,6 +158,98 @@
             padding: 15px;
             border-radius: 4px;
         }
+        .note-content.rendered-markdown {
+            white-space: normal;
+            font-family: inherit;
+            line-height: 1.7;
+        }
+        .note-content.rendered-markdown h1,
+        .note-content.rendered-markdown h2,
+        .note-content.rendered-markdown h3,
+        .note-content.rendered-markdown h4,
+        .note-content.rendered-markdown h5,
+        .note-content.rendered-markdown h6 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            line-height: 1.3;
+        }
+        .note-content.rendered-markdown h1:first-child,
+        .note-content.rendered-markdown h2:first-child,
+        .note-content.rendered-markdown h3:first-child {
+            margin-top: 0;
+        }
+        .note-content.rendered-markdown p {
+            margin: 0 0 1em 0;
+        }
+        .note-content.rendered-markdown p:last-child {
+            margin-bottom: 0;
+        }
+        .note-content.rendered-markdown pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+        .note-content.rendered-markdown code {
+            background: #e8e8e8;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .note-content.rendered-markdown pre code {
+            background: none;
+            padding: 0;
+            font-size: 1em;
+        }
+        .note-content.rendered-markdown blockquote {
+            border-left: 4px solid #ddd;
+            margin: 1em 0;
+            padding-left: 1em;
+            color: #666;
+        }
+        .note-content.rendered-markdown ul,
+        .note-content.rendered-markdown ol {
+            margin: 0 0 1em 0;
+            padding-left: 2em;
+        }
+        .note-content.rendered-markdown li {
+            margin-bottom: 0.25em;
+        }
+        .note-content.rendered-markdown a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .note-content.rendered-markdown a:hover {
+            text-decoration: underline;
+        }
+        .note-content.rendered-markdown a.wiki-link {
+            border-bottom: 1px dashed #0066cc;
+        }
+        .note-content.rendered-markdown a.wiki-link:hover {
+            border-bottom-style: solid;
+        }
+        .note-content.rendered-markdown hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 1.5em 0;
+        }
+        .note-content.rendered-markdown table {
+            border-collapse: collapse;
+            margin: 1em 0;
+            width: 100%;
+        }
+        .note-content.rendered-markdown th,
+        .note-content.rendered-markdown td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .note-content.rendered-markdown th {
+            background: #f5f5f5;
+        }
         .actions {
             display: flex;
             gap: 10px;
