@@ -22,6 +22,9 @@ uv run notes-web
 uv run notes-web --port 3000  # custom port
 uv run notes-web --host 127.0.0.1  # localhost only
 
+# Run all checks (ruff, mypy, pytest)
+uv run nox -s check
+
 # Run tests
 uv run pytest
 

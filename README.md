@@ -146,20 +146,16 @@ Open Perplexity → Settings → MCP Servers → Add Server:
 
 ## Development
 
-Run tests:
+Run all checks (ruff, mypy, pytest):
 
 ```bash
-uv run pytest
+uv run nox -s check
 ```
 
-Run linting:
+Or run individually:
 
 ```bash
-uv run ruff check src tests
-```
-
-Type checking:
-
-```bash
-uv run mypy src
+uv run pytest              # tests
+uv run ruff check src tests # linting
+uv run mypy src             # type checking
 ```
