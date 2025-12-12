@@ -685,3 +685,12 @@ class TestMarkdownRendering:
         assert 'id="edit-tab"' in response.text
         assert 'id="preview-tab"' in response.text
         assert 'id="preview-pane"' in response.text
+
+    def test_create_form_has_preview_toggle(self, client: TestClient):
+        """Test that create form has preview toggle buttons."""
+        response = client.get("/new")
+
+        assert response.status_code == 200
+        assert 'id="edit-tab"' in response.text
+        assert 'id="preview-tab"' in response.text
+        assert 'id="preview-pane"' in response.text
