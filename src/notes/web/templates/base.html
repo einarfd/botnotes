@@ -119,6 +119,45 @@
         .form-group {
             margin-bottom: 15px;
         }
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .content-header label {
+            margin-bottom: 0;
+        }
+        .preview-toggle {
+            display: flex;
+            gap: 0;
+        }
+        .tab-btn {
+            padding: 5px 12px;
+            border: 1px solid #ddd;
+            background: #f5f5f5;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .tab-btn:first-child {
+            border-radius: 4px 0 0 4px;
+        }
+        .tab-btn:last-child {
+            border-radius: 0 4px 4px 0;
+            border-left: none;
+        }
+        .tab-btn.active {
+            background: #0066cc;
+            color: white;
+            border-color: #0066cc;
+        }
+        .tab-btn:hover:not(.active) {
+            background: #e8e8e8;
+        }
+        #preview-pane {
+            min-height: 300px;
+            border: 1px solid #ddd;
+        }
         .search-box {
             display: flex;
             gap: 10px;

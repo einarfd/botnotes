@@ -652,3 +652,36 @@ class TestMarkdownRendering:
 
         assert response.status_code == 200
         assert 'class="note-content rendered-markdown"' in response.text
+
+    def test_preview_endpoint(self, client: TestClient):
+        """Test the markdown preview endpoint."""
+        response = client.post(
+            "/preview",
+            data={"content": "# Hello\n\n**Bold** text and [[wiki/link]]"},
+        )
+
+        assert response.status_code == 200
+        assert "<h1>Hello</h1>" in response.text
+        assert "<strong>Bold</strong>" in response.text
+        assert 'href="/notes/wiki/link"' in response.text
+
+    def test_preview_endpoint_empty(self, client: TestClient):
+        """Test preview with empty content."""
+        response = client.post("/preview", data={"content": ""})
+
+        assert response.status_code == 200
+        assert response.text == ""
+
+    def test_edit_form_has_preview_toggle(self, client: TestClient):
+        """Test that edit form has preview toggle buttons."""
+        client.post(
+            "/api/notes",
+            json={"path": "previewtest", "title": "Preview Test", "content": "Test"},
+        )
+
+        response = client.get("/notes/previewtest/edit")
+
+        assert response.status_code == 200
+        assert 'id="edit-tab"' in response.text
+        assert 'id="preview-tab"' in response.text
+        assert 'id="preview-pane"' in response.text

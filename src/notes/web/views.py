@@ -222,6 +222,13 @@ def search_help(request: Request) -> HTMLResponse:
     )
 
 
+@router.post("/preview", response_class=HTMLResponse)
+def preview_markdown(content: str = Form("")) -> HTMLResponse:
+    """Render markdown content for preview."""
+    rendered = render_markdown(content)
+    return HTMLResponse(content=rendered)
+
+
 @router.get("/tags", response_class=HTMLResponse)
 def list_tags_view(request: Request) -> HTMLResponse:
     """Show all tags."""
