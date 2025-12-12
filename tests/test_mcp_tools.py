@@ -1,5 +1,8 @@
 """Integration tests for MCP tools."""
 
+import pytest
+from fastmcp.exceptions import ToolError
+
 from notes.config import Config
 from notes.tools.notes import (
     create_note,
@@ -65,10 +68,9 @@ class TestReadNote:
         assert "updated_at" in result
 
     def test_read_note_not_found(self, mock_config: Config):
-        """Test reading a nonexistent note."""
-        result = _read_note("nonexistent")
-
-        assert result == "Note not found: 'nonexistent'"
+        """Test reading a nonexistent note raises ToolError."""
+        with pytest.raises(ToolError, match="Note not found: 'nonexistent'"):
+            _read_note("nonexistent")
 
 
 class TestUpdateNote:
@@ -105,10 +107,9 @@ class TestUpdateNote:
         assert read_result["tags"] == ["new", "tags"]
 
     def test_update_note_not_found(self, mock_config: Config):
-        """Test updating a nonexistent note."""
-        result = _update_note("nonexistent", title="New Title")
-
-        assert "Note not found: 'nonexistent'" in result
+        """Test updating a nonexistent note raises ToolError."""
+        with pytest.raises(ToolError, match="Note not found: 'nonexistent'"):
+            _update_note("nonexistent", title="New Title")
 
 
 class TestDeleteNote:
@@ -123,14 +124,13 @@ class TestDeleteNote:
         assert "Deleted note at 'deletable'" in result
 
         # Verify it's gone
-        read_result = _read_note("deletable")
-        assert "Note not found" in read_result
+        with pytest.raises(ToolError, match="Note not found"):
+            _read_note("deletable")
 
     def test_delete_note_not_found(self, mock_config: Config):
-        """Test deleting a nonexistent note."""
-        result = _delete_note("nonexistent")
-
-        assert "Note not found: 'nonexistent'" in result
+        """Test deleting a nonexistent note raises ToolError."""
+        with pytest.raises(ToolError, match="Note not found: 'nonexistent'"):
+            _delete_note("nonexistent")
 
 
 class TestListNotes:

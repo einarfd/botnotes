@@ -1,5 +1,6 @@
 """Note CRUD operations as MCP tools."""
 
+from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
 from notes.server import mcp
@@ -27,25 +28,28 @@ def create_note(path: str, title: str, content: str, tags: list[str] | None = No
     try:
         service.create_note(path=path, title=title, content=content, tags=tags)
     except (ValidationError, ValueError) as e:
-        return f"Error creating note: {e}"
+        raise ToolError(f"Error creating note: {e}") from e
     return f"Created note at '{path}'"
 
 
 @mcp.tool()
-def read_note(path: str) -> dict[str, str | list[str]] | str:
+def read_note(path: str) -> dict[str, str | list[str]]:
     """Read a note by its path.
 
     Args:
         path: The path/identifier of the note to read
 
     Returns:
-        The note data as a dict, or an error message if not found
+        The note data as a dict
+
+    Raises:
+        ToolError: If note not found
     """
     service = _get_service()
     note = service.read_note(path)
 
     if note is None:
-        return f"Note not found: '{path}'"
+        raise ToolError(f"Note not found: '{path}'")
 
     return {
         "path": note.path,
@@ -73,16 +77,19 @@ def update_note(
         tags: New tags (optional, keeps existing if not provided)
 
     Returns:
-        Confirmation message or error if note not found
+        Confirmation message
+
+    Raises:
+        ToolError: If note not found or validation error
     """
     service = _get_service()
     try:
         note = service.update_note(path=path, title=title, content=content, tags=tags)
     except (ValidationError, ValueError) as e:
-        return f"Error updating note: {e}"
+        raise ToolError(f"Error updating note: {e}") from e
 
     if note is None:
-        return f"Note not found: '{path}'"
+        raise ToolError(f"Note not found: '{path}'")
 
     return f"Updated note at '{path}'"
 
@@ -95,14 +102,17 @@ def delete_note(path: str) -> str:
         path: The path/identifier of the note to delete
 
     Returns:
-        Confirmation message or error if note not found
+        Confirmation message
+
+    Raises:
+        ToolError: If note not found
     """
     service = _get_service()
 
     if service.delete_note(path):
         return f"Deleted note at '{path}'"
 
-    return f"Note not found: '{path}'"
+    raise ToolError(f"Note not found: '{path}'")
 
 
 @mcp.tool()
