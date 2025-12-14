@@ -8,55 +8,37 @@ AI-friendly note-taking solution with MCP integration and web UI.
 uv sync
 ```
 
-## Usage
+## Quick Start
 
-### MCP Server
+### MCP Server (Local)
 
-Run the MCP server for AI assistants:
+Run the MCP server for AI assistants (stdio mode, no config needed):
 
 ```bash
 uv run notes
 ```
 
+Then configure your MCP client (see [Client Setup](#mcp-client-setup-local) below).
+
 ### Web UI
 
-Run the web interface:
+Run the web interface for browsing and editing notes:
 
 ```bash
 uv run notes-web
-uv run notes-web --port 3000        # custom port
-uv run notes-web --host 127.0.0.1   # localhost only
-uv run notes-web --no-reload        # disable auto-reload
 ```
 
-Opens at http://localhost:8000 (or your custom port) with:
+Opens at http://localhost:8000 with:
 - Browse and search notes
 - Create, edit, and delete notes
 - Tag-based organization
 - REST API at `/api/*`
 
-### Admin CLI
+Options: `--port 3000`, `--host 127.0.0.1`, `--no-reload`
 
-Command-line tools for administration:
+## MCP Client Setup (Local)
 
-```bash
-# Rebuild search and backlinks indexes
-uv run notes-admin rebuild
-
-# Export all notes to backup archive
-uv run notes-admin export                    # → notes-backup-YYYY-MM-DD.tar.gz
-uv run notes-admin export backup.tar.gz      # custom filename
-
-# Import notes from backup archive
-uv run notes-admin import backup.tar.gz              # merge with existing
-uv run notes-admin import backup.tar.gz --replace    # replace all notes
-
-# Delete all notes
-uv run notes-admin clear              # prompts for confirmation
-uv run notes-admin clear --force      # skip confirmation
-```
-
-## MCP Client Setup
+Configure your AI assistant to connect to the local MCP server.
 
 ### Claude Desktop
 
@@ -76,11 +58,11 @@ Add to your config file:
 }
 ```
 
-Restart Claude Desktop after saving. You should see the MCP indicator in the input box.
+Restart Claude Desktop after saving.
 
 ### VS Code
 
-Add to `.vscode/mcp.json` in your workspace or configure globally:
+Add to `.vscode/mcp.json` in your workspace:
 
 ```json
 {
@@ -99,7 +81,7 @@ Requires VS Code 1.102+ with `chat.mcp.discovery.enabled` setting.
 
 ### Cursor
 
-Add via Cursor Settings > MCP, or edit the `mcp.json` file:
+Add via Cursor Settings > MCP, or edit `mcp.json`:
 
 ```json
 {
@@ -114,7 +96,7 @@ Add via Cursor Settings > MCP, or edit the `mcp.json` file:
 
 ### Claude Code
 
-Configure via `/mcp` command in Claude Code, or add to `~/.claude.json`:
+Configure via `/mcp` command, or add to `~/.claude.json`:
 
 ```json
 {
@@ -129,8 +111,6 @@ Configure via `/mcp` command in Claude Code, or add to `~/.claude.json`:
 
 ### Perplexity (macOS)
 
-Perplexity's Mac app supports local MCP servers (paid subscribers, via Mac App Store).
-
 Open Perplexity → Settings → MCP Servers → Add Server:
 
 ```json
@@ -142,6 +122,78 @@ Open Perplexity → Settings → MCP Servers → Add Server:
     }
   }
 }
+```
+
+## HTTP Mode (Remote Access)
+
+For remote MCP access over HTTPS with bearer token authentication.
+
+### 1. Create Config File
+
+Create `~/.local/notes/config.toml`:
+
+```toml
+[auth.keys]
+my-agent = "your-secret-token-here"
+```
+
+Generate a secure token:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### 2. Run HTTP Server
+
+```bash
+uv run notes-admin serve
+uv run notes-admin serve --host 0.0.0.0 --port 9000  # custom bind
+```
+
+### 3. Configure Reverse Proxy (HTTPS)
+
+Use Caddy, nginx, or similar for TLS termination. Caddy example:
+
+```
+notes.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+### 4. Configure MCP Client
+
+```json
+{
+  "mcpServers": {
+    "notes": {
+      "url": "https://notes.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer your-secret-token-here"
+      }
+    }
+  }
+}
+```
+
+## Admin CLI
+
+Command-line tools for administration:
+
+```bash
+# Rebuild search and backlinks indexes
+uv run notes-admin rebuild
+
+# Export all notes to backup archive
+uv run notes-admin export                    # → notes-backup-YYYY-MM-DD.tar.gz
+uv run notes-admin export backup.tar.gz      # custom filename
+
+# Import notes from backup archive
+uv run notes-admin import backup.tar.gz              # merge with existing
+uv run notes-admin import backup.tar.gz --replace    # replace all notes
+
+# Delete all notes
+uv run notes-admin clear              # prompts for confirmation
+uv run notes-admin clear --force      # skip confirmation
 ```
 
 ## Development

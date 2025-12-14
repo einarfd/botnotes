@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from notes.backup import clear_notes, export_notes, import_notes
-from notes.config import get_config
+from notes.config import Config, get_config
 from notes.services import NoteService
 
 
@@ -71,6 +71,41 @@ def clear_all(force: bool) -> None:
     print("Done!")
 
 
+def serve(host: str | None, port: int | None) -> None:
+    """Run MCP server in HTTP mode."""
+    import asyncio
+
+    from notes.auth import ApiKeyAuthProvider
+    from notes.server import mcp
+
+    config = Config.load()
+
+    # HTTP mode requires auth - fail early with clear message
+    config.validate_for_http()
+
+    if host:
+        config.server.host = host
+    if port:
+        config.server.port = port
+
+    print(f"Starting MCP server on http://{config.server.host}:{config.server.port}")
+    print(f"Auth enabled with {len(config.auth.keys)} API key(s):")
+    for name in config.auth.keys:
+        print(f"  - {name}")
+
+    # Configure auth on the server
+    mcp._auth = ApiKeyAuthProvider(config.auth.keys)  # type: ignore[attr-defined]
+
+    # Run HTTP server
+    asyncio.run(
+        mcp.run_http_async(
+            transport="http",
+            host=config.server.host,
+            port=config.server.port,
+        )
+    )
+
+
 def main() -> None:
     """Main entry point for notes-admin CLI."""
     parser = argparse.ArgumentParser(
@@ -107,6 +142,18 @@ def main() -> None:
         help="Skip confirmation prompt",
     )
 
+    # Serve command
+    serve_parser = subparsers.add_parser("serve", help="Run MCP server in HTTP mode")
+    serve_parser.add_argument(
+        "--host",
+        help="Host to bind to (default: from config or 127.0.0.1)",
+    )
+    serve_parser.add_argument(
+        "--port",
+        type=int,
+        help="Port to listen on (default: from config or 8080)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "rebuild":
@@ -117,6 +164,8 @@ def main() -> None:
         import_backup(args.archive, args.replace)
     elif args.command == "clear":
         clear_all(args.force)
+    elif args.command == "serve":
+        serve(args.host, args.port)
 
 
 if __name__ == "__main__":
