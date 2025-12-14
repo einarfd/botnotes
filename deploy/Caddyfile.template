@@ -1,0 +1,43 @@
+# Caddyfile Template for Notes Deployment
+# This file is for reference - setup-tailscale.sh generates the actual Caddyfile
+
+# ============================================================================
+# Tailscale Mode (with pre-fetched certificates)
+# ============================================================================
+# {hostname}.{tailnet}.ts.net {
+#     tls /path/to/cert.crt /path/to/key.key
+#
+#     handle /mcp* {
+#         reverse_proxy localhost:8080
+#     }
+#
+#     handle {
+#         reverse_proxy localhost:8000
+#     }
+# }
+
+# ============================================================================
+# Domain Mode (automatic Let's Encrypt)
+# ============================================================================
+# notes.example.com {
+#     # Caddy automatically fetches Let's Encrypt certs
+#
+#     handle /mcp* {
+#         reverse_proxy localhost:8080
+#     }
+#
+#     handle {
+#         reverse_proxy localhost:8000
+#     }
+# }
+
+# ============================================================================
+# With separate subdomains
+# ============================================================================
+# mcp.example.com {
+#     reverse_proxy localhost:8080
+# }
+#
+# notes.example.com {
+#     reverse_proxy localhost:8000
+# }

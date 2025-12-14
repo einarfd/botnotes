@@ -31,3 +31,10 @@ htmlcov/
 
 # Project specific
 *.log
+
+# Deployment
+deploy/config.env
+deploy/Caddyfile
+deploy/certs/
+deploy/logs/
+deploy/pids/

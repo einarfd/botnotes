@@ -168,6 +168,19 @@ notes.example.com {
 }
 ```
 
+### Deployment Scripts
+
+For home servers, the `deploy/` directory contains helper scripts to run both MCP and web servers behind Caddy with HTTPS (using Tailscale certificates):
+
+```bash
+cd deploy
+cp config.env.example config.env
+./setup-tailscale.sh
+./start.sh
+```
+
+See [deploy/README.md](deploy/README.md) for full documentation.
+
 ## Admin CLI
 
 Command-line tools for administration:
