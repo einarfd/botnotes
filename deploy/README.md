@@ -108,7 +108,7 @@ After setup, configure your MCP client.
 }
 ```
 
-**Claude Pro/Max/Team** - can add remote servers via Settings → Connectors in the web UI.
+**Note:** Claude's web UI Connectors (Settings → Connectors) only support OAuth, not bearer tokens.
 
 Get your API key with: `uv run notes-admin auth list`
 
