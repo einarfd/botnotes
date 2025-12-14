@@ -155,18 +155,52 @@ notes.example.com {
 
 ### 4. Configure MCP Client
 
+**VS Code** (v1.102+) - native HTTP support in `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "notes": {
+      "type": "http",
+      "url": "https://notes.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:notes-api-key}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "notes-api-key",
+      "description": "Notes API Key",
+      "password": true
+    }
+  ]
+}
+```
+
+**Claude Desktop / Cursor** - requires [mcp-remote](https://github.com/geelen/mcp-remote) proxy:
+
 ```json
 {
   "mcpServers": {
     "notes": {
-      "url": "https://notes.example.com/mcp",
-      "headers": {
-        "Authorization": "Bearer your-secret-token-here"
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://notes.example.com/mcp",
+        "--header",
+        "Authorization: Bearer ${AUTH_TOKEN}"
+      ],
+      "env": {
+        "AUTH_TOKEN": "your-secret-token-here"
       }
     }
   }
 }
 ```
+
+**Claude Pro/Max/Team** - can add remote servers via Settings → Connectors in the web UI.
 
 ### Deployment Scripts
 

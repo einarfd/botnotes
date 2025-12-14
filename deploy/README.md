@@ -61,20 +61,54 @@ HTTPS_PORT=443
 
 ## MCP Client Configuration
 
-After setup, configure your MCP client (Claude Desktop, VS Code, etc.):
+After setup, configure your MCP client.
+
+**VS Code** (v1.102+) - native HTTP support in `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "notes": {
+      "type": "http",
+      "url": "https://your-machine.tailnet.ts.net/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:notes-api-key}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "notes-api-key",
+      "description": "Notes API Key",
+      "password": true
+    }
+  ]
+}
+```
+
+**Claude Desktop / Cursor** - requires [mcp-remote](https://github.com/geelen/mcp-remote) proxy:
 
 ```json
 {
   "mcpServers": {
     "notes": {
-      "url": "https://your-machine.tailnet.ts.net/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY"
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://your-machine.tailnet.ts.net/mcp",
+        "--header",
+        "Authorization: Bearer ${AUTH_TOKEN}"
+      ],
+      "env": {
+        "AUTH_TOKEN": "your-api-key-here"
       }
     }
   }
 }
 ```
+
+**Claude Pro/Max/Team** - can add remote servers via Settings → Connectors in the web UI.
 
 Get your API key with: `uv run notes-admin auth list`
 
