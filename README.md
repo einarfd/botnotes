@@ -128,20 +128,13 @@ Open Perplexity → Settings → MCP Servers → Add Server:
 
 For remote MCP access over HTTPS with bearer token authentication.
 
-### 1. Create Config File
-
-Create `~/.local/notes/config.toml`:
-
-```toml
-[auth.keys]
-my-agent = "your-secret-token-here"
-```
-
-Generate a secure token:
+### 1. Add an API Key
 
 ```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
+uv run notes-admin auth add my-agent
 ```
+
+This generates a secure token and displays it once. Save it for client configuration.
 
 ### 2. Run HTTP Server
 
@@ -180,6 +173,11 @@ notes.example.com {
 Command-line tools for administration:
 
 ```bash
+# Manage API keys for HTTP mode
+uv run notes-admin auth list              # List configured keys
+uv run notes-admin auth add <name>        # Generate and add new key
+uv run notes-admin auth remove <name>     # Remove a key
+
 # Rebuild search and backlinks indexes
 uv run notes-admin rebuild
 

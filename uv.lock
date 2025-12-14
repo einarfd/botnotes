@@ -697,6 +697,7 @@ dependencies = [
     { name = "nh3" },
     { name = "pydantic" },
     { name = "tantivy" },
+    { name = "tomli-w" },
     { name = "uvicorn" },
 ]
 
@@ -719,6 +720,7 @@ requires-dist = [
     { name = "nh3", specifier = ">=0.2.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "tantivy", specifier = ">=0.22.0" },
+    { name = "tomli-w", specifier = ">=1.0.0" },
     { name = "uvicorn", specifier = ">=0.32.0" },
 ]
 
@@ -1199,6 +1201,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/32/f5/a00d65433430f51718e5cc6938df571765d7c4e03aedec5aef4ab567aa9b/tantivy-0.25.1-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4f5ff124c4802558e627091e780b362ca944169736caba5a372eef39a79d0ae0", size = 4207186, upload-time = "2025-12-02T11:56:58.803Z" },
     { url = "https://files.pythonhosted.org/packages/19/63/61bdb12fc95f2a7f77bd419a5149bfa9f28caa76cb569bf2b6b06e1d033e/tantivy-0.25.1-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:43b80ef62a340416139c93d19264e5f808da48e04f9305f1092b8ed22be0a5be", size = 4187312, upload-time = "2025-12-02T11:57:00.595Z" },
     { url = "https://files.pythonhosted.org/packages/b7/de/e39c0b01d59019bf5c38face8b81defbc4a68cebf5e0c53bcb2cd715a449/tantivy-0.25.1-cp314-cp314-win_amd64.whl", hash = "sha256:286b654f40c70c1e6b64b9bc7031ed0bf5c440f5bffeaeeee21a0ee6cc39f0e2", size = 3436535, upload-time = "2025-12-02T11:57:02.267Z" },
+]
+
+[[package]]
+name = "tomli-w"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/75/241269d1da26b624c0d5e110e8149093c759b7a286138f4efd61a60e75fe/tomli_w-1.2.0.tar.gz", hash = "sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021", size = 7184, upload-time = "2025-01-15T12:07:24.262Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl", hash = "sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90", size = 6675, upload-time = "2025-01-15T12:07:22.074Z" },
 ]
 
 [[package]]

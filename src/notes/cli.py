@@ -1,6 +1,7 @@
 """CLI tools for notes administration."""
 
 import argparse
+import secrets
 from pathlib import Path
 
 from notes.backup import clear_notes, export_notes, import_notes
@@ -106,6 +107,50 @@ def serve(host: str | None, port: int | None) -> None:
     )
 
 
+def auth_list() -> None:
+    """List configured API key names."""
+    config = Config.load()
+    if not config.auth.keys:
+        print("No API keys configured.")
+        print("Add one with: notes-admin auth add <name>")
+        return
+
+    print("Configured API keys:")
+    for name in sorted(config.auth.keys):
+        print(f"  - {name}")
+
+
+def auth_add(name: str) -> None:
+    """Add a new API key."""
+    config = Config.load()
+
+    if name in config.auth.keys:
+        print(f"Error: Key '{name}' already exists.")
+        print("Use 'notes-admin auth remove' first to replace it.")
+        return
+
+    # Generate secure token
+    token = secrets.token_urlsafe(32)
+    config.auth.keys[name] = token
+    config.save()
+
+    print(f"Added API key '{name}'")
+    print(f"Token: {token}")
+
+
+def auth_remove(name: str) -> None:
+    """Remove an API key."""
+    config = Config.load()
+
+    if name not in config.auth.keys:
+        print(f"Error: Key '{name}' not found.")
+        return
+
+    del config.auth.keys[name]
+    config.save()
+    print(f"Removed API key '{name}'")
+
+
 def main() -> None:
     """Main entry point for notes-admin CLI."""
     parser = argparse.ArgumentParser(
@@ -154,6 +199,18 @@ def main() -> None:
         help="Port to listen on (default: from config or 8080)",
     )
 
+    # Auth commands
+    auth_parser = subparsers.add_parser("auth", help="Manage API keys")
+    auth_subparsers = auth_parser.add_subparsers(dest="auth_command", required=True)
+
+    auth_subparsers.add_parser("list", help="List configured API keys")
+
+    auth_add_parser = auth_subparsers.add_parser("add", help="Add a new API key")
+    auth_add_parser.add_argument("name", help="Name for the API key")
+
+    auth_remove_parser = auth_subparsers.add_parser("remove", help="Remove an API key")
+    auth_remove_parser.add_argument("name", help="Name of the key to remove")
+
     args = parser.parse_args()
 
     if args.command == "rebuild":
@@ -166,6 +223,13 @@ def main() -> None:
         clear_all(args.force)
     elif args.command == "serve":
         serve(args.host, args.port)
+    elif args.command == "auth":
+        if args.auth_command == "list":
+            auth_list()
+        elif args.auth_command == "add":
+            auth_add(args.name)
+        elif args.auth_command == "remove":
+            auth_remove(args.name)
 
 
 if __name__ == "__main__":

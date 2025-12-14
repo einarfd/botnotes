@@ -5,7 +5,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from notes.cli import clear_all, export_backup, import_backup, main, rebuild_indexes
+from notes.cli import (
+    auth_add,
+    auth_list,
+    auth_remove,
+    clear_all,
+    export_backup,
+    import_backup,
+    main,
+    rebuild_indexes,
+)
 
 
 class TestRebuildIndexes:
@@ -291,5 +300,151 @@ class TestMain:
         """Test that invalid command shows error."""
         with patch("sys.argv", ["notes-admin", "invalid"]), pytest.raises(SystemExit):
             main()
+
+    def test_auth_list_command(self):
+        """Test that auth list command calls auth_list."""
+        with (
+            patch("notes.cli.auth_list") as mock_auth_list,
+            patch("sys.argv", ["notes-admin", "auth", "list"]),
+        ):
+            main()
+            mock_auth_list.assert_called_once()
+
+    def test_auth_add_command(self):
+        """Test that auth add command calls auth_add with name."""
+        with (
+            patch("notes.cli.auth_add") as mock_auth_add,
+            patch("sys.argv", ["notes-admin", "auth", "add", "my-key"]),
+        ):
+            main()
+            mock_auth_add.assert_called_once_with("my-key")
+
+    def test_auth_remove_command(self):
+        """Test that auth remove command calls auth_remove with name."""
+        with (
+            patch("notes.cli.auth_remove") as mock_auth_remove,
+            patch("sys.argv", ["notes-admin", "auth", "remove", "my-key"]),
+        ):
+            main()
+            mock_auth_remove.assert_called_once_with("my-key")
+
+    def test_auth_add_requires_name(self):
+        """Test that auth add command requires name argument."""
+        with patch("sys.argv", ["notes-admin", "auth", "add"]), pytest.raises(SystemExit):
+            main()
+
+    def test_auth_remove_requires_name(self):
+        """Test that auth remove command requires name argument."""
+        with patch("sys.argv", ["notes-admin", "auth", "remove"]), pytest.raises(SystemExit):
+            main()
+
+
+class TestAuthList:
+    """Tests for the auth_list function."""
+
+    def test_auth_list_empty(self, capsys: pytest.CaptureFixture[str]):
+        """Test auth_list with no keys configured."""
+        with patch("notes.cli.Config.load") as mock_load:
+            mock_config = MagicMock()
+            mock_config.auth.keys = {}
+            mock_load.return_value = mock_config
+
+            auth_list()
+
+            captured = capsys.readouterr()
+            assert "No API keys configured" in captured.out
+            assert "notes-admin auth add" in captured.out
+
+    def test_auth_list_with_keys(self, capsys: pytest.CaptureFixture[str]):
+        """Test auth_list shows key names."""
+        with patch("notes.cli.Config.load") as mock_load:
+            mock_config = MagicMock()
+            mock_config.auth.keys = {"key-a": "token-a", "key-b": "token-b"}
+            mock_load.return_value = mock_config
+
+            auth_list()
+
+            captured = capsys.readouterr()
+            assert "Configured API keys" in captured.out
+            assert "key-a" in captured.out
+            assert "key-b" in captured.out
+            # Should not show tokens
+            assert "token-a" not in captured.out
+            assert "token-b" not in captured.out
+
+
+class TestAuthAdd:
+    """Tests for the auth_add function."""
+
+    def test_auth_add_creates_key(self, capsys: pytest.CaptureFixture[str]):
+        """Test auth_add creates a new key and shows token."""
+        with patch("notes.cli.Config.load") as mock_load:
+            mock_config = MagicMock()
+            mock_config.auth.keys = {}
+            mock_load.return_value = mock_config
+
+            auth_add("my-agent")
+
+            # Key should be added
+            assert "my-agent" in mock_config.auth.keys
+            # Config should be saved
+            mock_config.save.assert_called_once()
+
+            captured = capsys.readouterr()
+            assert "Added API key 'my-agent'" in captured.out
+            assert "Token:" in captured.out
+
+    def test_auth_add_duplicate_fails(self, capsys: pytest.CaptureFixture[str]):
+        """Test auth_add fails on duplicate name."""
+        with patch("notes.cli.Config.load") as mock_load:
+            mock_config = MagicMock()
+            mock_config.auth.keys = {"existing-key": "some-token"}
+            mock_load.return_value = mock_config
+
+            auth_add("existing-key")
+
+            # Config should not be saved
+            mock_config.save.assert_not_called()
+
+            captured = capsys.readouterr()
+            assert "Error" in captured.out
+            assert "already exists" in captured.out
+
+
+class TestAuthRemove:
+    """Tests for the auth_remove function."""
+
+    def test_auth_remove_key(self, capsys: pytest.CaptureFixture[str]):
+        """Test auth_remove removes existing key."""
+        with patch("notes.cli.Config.load") as mock_load:
+            mock_config = MagicMock()
+            mock_config.auth.keys = {"my-key": "my-token"}
+            mock_load.return_value = mock_config
+
+            auth_remove("my-key")
+
+            # Key should be removed
+            assert "my-key" not in mock_config.auth.keys
+            # Config should be saved
+            mock_config.save.assert_called_once()
+
+            captured = capsys.readouterr()
+            assert "Removed API key 'my-key'" in captured.out
+
+    def test_auth_remove_nonexistent(self, capsys: pytest.CaptureFixture[str]):
+        """Test auth_remove fails on nonexistent key."""
+        with patch("notes.cli.Config.load") as mock_load:
+            mock_config = MagicMock()
+            mock_config.auth.keys = {}
+            mock_load.return_value = mock_config
+
+            auth_remove("missing-key")
+
+            # Config should not be saved
+            mock_config.save.assert_not_called()
+
+            captured = capsys.readouterr()
+            assert "Error" in captured.out
+            assert "not found" in captured.out
 
 
