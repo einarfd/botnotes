@@ -73,8 +73,11 @@ def clear_all(force: bool) -> None:
 
 
 def serve(host: str | None, port: int | None) -> None:
-    """Run MCP server in HTTP mode."""
+    """Run MCP server in HTTP mode with /health endpoint."""
     import asyncio
+
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse, Response
 
     from notes.auth import ApiKeyAuthProvider
     from notes.server import mcp
@@ -96,6 +99,11 @@ def serve(host: str | None, port: int | None) -> None:
 
     # Configure auth on the server
     mcp._auth = ApiKeyAuthProvider(config.auth.keys)  # type: ignore[attr-defined]
+
+    # Health check endpoint (unauthenticated for K8s probes)
+    @mcp.custom_route("/health", methods=["GET"])
+    async def health(request: Request) -> Response:
+        return JSONResponse({"status": "ok"})
 
     # Run HTTP server
     asyncio.run(

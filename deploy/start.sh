@@ -88,8 +88,7 @@ echo "Checking services..."
 check_service() {
     local name=$1
     local port=$2
-    local path=${3:-/}
-    if curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$port$path" | grep -q "200\|401"; then
+    if curl -sf -o /dev/null "http://127.0.0.1:$port/health"; then
         echo -e "${GREEN}✓ $name responding on port $port${NC}"
         return 0
     else
@@ -98,8 +97,8 @@ check_service() {
     fi
 }
 
-check_service "MCP" "$MCP_PORT" "/health" || true
-check_service "Web" "$WEB_PORT" "/health" || true
+check_service "MCP" "$MCP_PORT" || true
+check_service "Web" "$WEB_PORT" || true
 
 # Start Caddy
 echo
@@ -117,6 +116,16 @@ echo
 echo "========================================"
 echo -e "${GREEN}All services started!${NC}"
 echo "========================================"
+
+# Extract hostname from Caddyfile and display URLs
+SERVICE_HOST=$(grep -m1 '\.ts\.net\|\.com\|\.net\|\.org' "$SCRIPT_DIR/Caddyfile" | sed 's/[[:space:]].*$//' | tr -d ' ')
+if [[ -n "$SERVICE_HOST" ]]; then
+    echo
+    echo "Service URLs:"
+    echo "  Web UI: https://$SERVICE_HOST/"
+    echo "  MCP:    https://$SERVICE_HOST/mcp"
+fi
+
 echo
 echo "Logs: $LOG_DIR/"
 echo "PIDs: $PID_DIR/"
