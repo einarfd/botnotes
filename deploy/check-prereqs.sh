@@ -91,11 +91,15 @@ if [[ "$MODE" == "tailscale" ]]; then
 
         # Check if Tailscale is running
         if tailscale status &> /dev/null; then
-            hostname=$(tailscale status --json 2>/dev/null | grep -o '"DNSName":"[^"]*"' | head -1 | cut -d'"' -f4 | sed 's/\.$//')
+            # Try to get hostname
+            hostname=$(tailscale cert 2>&1 | grep -o '[a-zA-Z0-9-]*\.[a-zA-Z0-9-]*\.ts\.net' | head -1)
+            if [[ -z "$hostname" ]]; then
+                hostname=$(tailscale status --self --json 2>/dev/null | sed -n 's/.*"DNSName":"\([^"]*\)".*/\1/p' | sed 's/\.$//')
+            fi
             if [[ -n "$hostname" ]]; then
                 log_ok "Tailscale connected: $hostname"
             else
-                log_warn "Tailscale running but hostname not found"
+                log_ok "Tailscale connected (hostname will be detected during setup)"
             fi
         else
             log_error "Tailscale not connected"

@@ -26,12 +26,45 @@ HTTPS_PORT="${HTTPS_PORT:-443}"
 
 # Get Tailscale hostname
 echo "Getting Tailscale hostname..."
-TS_HOSTNAME=$(tailscale status --json 2>/dev/null | grep -o '"DNSName":"[^"]*"' | head -1 | cut -d'"' -f4 | sed 's/\.$//')
+
+# Try multiple methods to get the hostname
+get_tailscale_hostname() {
+    # Method 1: Use tailscale cert to show available hostname
+    local hostname=$(tailscale cert 2>&1 | grep -o '[a-zA-Z0-9-]*\.[a-zA-Z0-9-]*\.ts\.net' | head -1)
+    if [[ -n "$hostname" ]]; then
+        echo "$hostname"
+        return
+    fi
+
+    # Method 2: Parse JSON with self flag
+    hostname=$(tailscale status --self --json 2>/dev/null | sed -n 's/.*"DNSName":"\([^"]*\)".*/\1/p' | sed 's/\.$//')
+    if [[ -n "$hostname" ]]; then
+        echo "$hostname"
+        return
+    fi
+
+    # Method 3: Parse full JSON output
+    hostname=$(tailscale status --json 2>/dev/null | sed -n 's/.*"Self":{[^}]*"DNSName":"\([^"]*\)".*/\1/p' | sed 's/\.$//')
+    if [[ -n "$hostname" ]]; then
+        echo "$hostname"
+        return
+    fi
+}
+
+TS_HOSTNAME=$(get_tailscale_hostname)
 
 if [[ -z "$TS_HOSTNAME" ]]; then
-    echo -e "${RED}Error: Could not determine Tailscale hostname${NC}"
-    echo "Make sure Tailscale is connected: tailscale status"
-    exit 1
+    echo -e "${RED}Error: Could not auto-detect Tailscale hostname${NC}"
+    echo
+    echo "Please enter your Tailscale hostname manually."
+    echo "You can find it by running: tailscale status"
+    echo "It should look like: machine-name.tailnet-name.ts.net"
+    echo
+    read -p "Tailscale hostname: " TS_HOSTNAME
+    if [[ -z "$TS_HOSTNAME" ]]; then
+        echo -e "${RED}No hostname provided. Exiting.${NC}"
+        exit 1
+    fi
 fi
 
 echo -e "${GREEN}Tailscale hostname: $TS_HOSTNAME${NC}"
