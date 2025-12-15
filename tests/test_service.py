@@ -551,3 +551,183 @@ class TestNoteServiceRebuild:
         backlinks = service.get_backlinks("target")
         assert len(backlinks) == 1
         assert backlinks[0].source_path == "source"
+
+
+class TestNoteServiceHistory:
+    """Tests for NoteService version history methods."""
+
+    def test_create_note_commits_to_git(self, config: Config):
+        """Test that creating a note creates a git commit."""
+        service = NoteService(config)
+        service.create_note(
+            path="test",
+            title="Test",
+            content="Content",
+            author="tester",
+        )
+
+        history = service.get_note_history("test")
+
+        assert len(history) == 1
+        assert history[0].author == "tester"
+        assert "create" in history[0].message.lower()
+
+    def test_update_note_commits_to_git(self, config: Config):
+        """Test that updating a note creates a git commit."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="v1", author="alice")
+        service.update_note("test", content="v2", author="bob")
+
+        history = service.get_note_history("test")
+
+        assert len(history) == 2
+        # Most recent first
+        assert history[0].author == "bob"
+        assert history[1].author == "alice"
+
+    def test_delete_note_commits_to_git(self, config: Config):
+        """Test that deleting a note creates a git commit."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="Content", author="alice")
+        service.delete_note("test", author="bob")
+
+        # Can't get history for deleted file via file path, but git repo still has it
+        # The delete commit exists in the repo
+        log = service.git._run_git("log", "-1", "--format=%an|%s")
+        assert "bob" in log
+        assert "delete" in log.lower()
+
+    def test_get_note_history(self, config: Config):
+        """Test getting note history."""
+        service = NoteService(config)
+        service.create_note(path="test", title="V1", content="version 1", author="alice")
+        service.update_note("test", content="version 2", author="bob")
+        service.update_note("test", content="version 3", author="charlie")
+
+        history = service.get_note_history("test")
+
+        assert len(history) == 3
+        assert history[0].author == "charlie"
+        assert history[1].author == "bob"
+        assert history[2].author == "alice"
+
+    def test_get_note_history_nonexistent(self, config: Config):
+        """Test getting history for non-existent note."""
+        service = NoteService(config)
+
+        history = service.get_note_history("nonexistent")
+
+        assert history == []
+
+    def test_get_note_history_with_limit(self, config: Config):
+        """Test getting history with limit."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="v1")
+        for i in range(5):
+            service.update_note("test", content=f"v{i+2}")
+
+        history = service.get_note_history("test", limit=3)
+
+        assert len(history) == 3
+
+    def test_get_note_version(self, config: Config):
+        """Test getting a specific version of a note."""
+        service = NoteService(config)
+        service.create_note(path="test", title="V1 Title", content="v1 content", author="alice")
+        history = service.get_note_history("test")
+        v1_sha = history[0].commit_sha
+
+        service.update_note("test", title="V2 Title", content="v2 content", author="bob")
+
+        old_note = service.get_note_version("test", v1_sha)
+
+        assert old_note is not None
+        assert old_note.title == "V1 Title"
+        assert old_note.content == "v1 content"
+
+    def test_get_note_version_not_found(self, config: Config):
+        """Test getting a non-existent version."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="Content")
+
+        note = service.get_note_version("test", "invalid123")
+
+        assert note is None
+
+    def test_diff_note_versions(self, config: Config):
+        """Test diffing two versions."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="line1")
+        v1 = service.get_note_history("test")[0].commit_sha
+
+        service.update_note("test", content="line1\nline2")
+        v2 = service.get_note_history("test")[0].commit_sha
+
+        diff = service.diff_note_versions("test", v1, v2)
+
+        assert diff.path == "test"
+        assert diff.from_version == v1
+        assert diff.to_version == v2
+        assert "line2" in diff.diff_text
+        assert diff.additions >= 1
+
+    def test_restore_note_version(self, config: Config):
+        """Test restoring a note to a previous version."""
+        service = NoteService(config)
+        service.create_note(
+            path="test",
+            title="Original Title",
+            content="original content",
+            tags=["original"],
+            author="alice",
+        )
+        v1 = service.get_note_history("test")[0].commit_sha
+
+        service.update_note(
+            "test",
+            title="New Title",
+            content="new content",
+            tags=["new"],
+            author="bob",
+        )
+
+        # Restore to v1
+        restored = service.restore_note_version("test", v1, author="charlie")
+
+        assert restored is not None
+        assert restored.title == "Original Title"
+        assert restored.content == "original content"
+        assert restored.tags == ["original"]
+
+        # Should have 3 commits now (create, update, restore)
+        history = service.get_note_history("test")
+        assert len(history) == 3
+        assert history[0].author == "charlie"
+
+    def test_restore_note_version_not_found(self, config: Config):
+        """Test restoring to a non-existent version."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="Content")
+
+        restored = service.restore_note_version("test", "invalid123")
+
+        assert restored is None
+
+    def test_restore_creates_new_commit(self, config: Config):
+        """Test that restore creates a new commit (doesn't rewrite history)."""
+        service = NoteService(config)
+        service.create_note(path="test", title="V1", content="v1")
+        v1 = service.get_note_history("test")[0].commit_sha
+
+        service.update_note("test", title="V2", content="v2")
+        service.restore_note_version("test", v1, author="restorer")
+
+        # All three versions should still exist in history
+        history = service.get_note_history("test")
+        assert len(history) == 3
+
+        # V2 should still be accessible
+        v2_sha = history[1].commit_sha
+        v2_note = service.get_note_version("test", v2_sha)
+        assert v2_note is not None
+        assert v2_note.title == "V2"

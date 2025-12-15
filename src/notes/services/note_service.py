@@ -5,9 +5,10 @@ from datetime import datetime
 
 from notes.config import Config, get_config
 from notes.links import BacklinkInfo, BacklinksIndex, extract_links, replace_link_target
-from notes.models import Note
+from notes.models import Note, NoteDiff, NoteVersion
 from notes.search import SearchIndex
 from notes.storage import FilesystemStorage
+from notes.storage.git_repo import GitRepository
 
 
 @dataclass
@@ -54,6 +55,7 @@ class NoteService:
         self._storage: FilesystemStorage | None = None
         self._index: SearchIndex | None = None
         self._backlinks: BacklinksIndex | None = None
+        self._git: GitRepository | None = None
 
     @property
     def storage(self) -> FilesystemStorage:
@@ -76,12 +78,21 @@ class NoteService:
             self._backlinks = BacklinksIndex(self._config.index_dir / "backlinks.json")
         return self._backlinks
 
+    @property
+    def git(self) -> GitRepository:
+        """Get the git repository (lazily initialized)."""
+        if self._git is None:
+            self._git = GitRepository(self._config.notes_dir)
+            self._git.ensure_initialized()
+        return self._git
+
     def create_note(
         self,
         path: str,
         title: str,
         content: str,
         tags: list[str] | None = None,
+        author: str | None = None,
     ) -> Note:
         """Create a new note.
 
@@ -90,6 +101,7 @@ class NoteService:
             title: The title of the note
             content: The markdown content of the note
             tags: Optional list of tags
+            author: Optional author name for version history
 
         Returns:
             The created Note object
@@ -106,6 +118,9 @@ class NoteService:
         # Index wiki links
         links = extract_links(content)
         self.backlinks.update_note_links(path, links)
+
+        # Commit to git for version history
+        self.git.commit_change(path, "create", author=author)
 
         return note
 
@@ -130,6 +145,7 @@ class NoteService:
         remove_tags: list[str] | None = None,
         new_path: str | None = None,
         update_backlinks: bool = True,
+        author: str | None = None,
     ) -> UpdateResult | None:
         """Update an existing note.
 
@@ -142,6 +158,7 @@ class NoteService:
             remove_tags: Tags to remove from existing tags (optional, mutually exclusive with tags)
             new_path: New path to move the note to (optional)
             update_backlinks: If moving, whether to update links in other notes (default True)
+            author: Optional author name for version history
 
         Returns:
             UpdateResult with the note and backlink info, or None if not found
@@ -219,6 +236,9 @@ class NoteService:
             # Update backlinks index to point to new path
             links = extract_links(note.content)
             self.backlinks.update_note_links(new_path, links)
+
+            # Commit the move to git
+            self.git.commit_change(new_path, "move", author=author)
         else:
             # No move - just save in place
             self.storage.save(note)
@@ -229,17 +249,21 @@ class NoteService:
                 links = extract_links(note.content)
                 self.backlinks.update_note_links(path, links)
 
+            # Commit update to git
+            self.git.commit_change(path, "update", author=author)
+
         return UpdateResult(
             note=note,
             backlinks_updated=backlinks_updated,
             backlinks_warning=backlinks_warning,
         )
 
-    def delete_note(self, path: str) -> DeleteResult:
+    def delete_note(self, path: str, author: str | None = None) -> DeleteResult:
         """Delete a note.
 
         Args:
             path: The path/identifier of the note
+            author: Optional author name for version history
 
         Returns:
             DeleteResult with deleted status and backlink warnings
@@ -250,6 +274,8 @@ class NoteService:
         if self.storage.delete(path):
             self.index.remove_note(path)
             self.backlinks.remove_note(path)
+            # Commit deletion to git
+            self.git.commit_change(path, "delete", author=author)
             return DeleteResult(deleted=True, backlinks_warning=backlinks_warning)
         return DeleteResult(deleted=False)
 
@@ -354,3 +380,85 @@ class NoteService:
             search_index_rebuilt=True,
             backlinks_index_rebuilt=True,
         )
+
+    # History methods
+
+    def get_note_history(self, path: str, limit: int = 50) -> list[NoteVersion]:
+        """Get version history for a note.
+
+        Args:
+            path: The path of the note
+            limit: Maximum number of versions to return (default 50)
+
+        Returns:
+            List of NoteVersion objects, most recent first
+        """
+        return self.git.get_file_history(path, limit=limit)
+
+    def get_note_version(self, path: str, version: str) -> Note | None:
+        """Get a specific version of a note.
+
+        Args:
+            path: The path of the note
+            version: The commit SHA (short or full)
+
+        Returns:
+            The Note object at that version, or None if not found
+        """
+        content = self.git.get_file_at_version(path, version)
+        if content is None:
+            return None
+        return Note.from_markdown(path, content)
+
+    def diff_note_versions(
+        self,
+        path: str,
+        from_version: str,
+        to_version: str,
+    ) -> NoteDiff:
+        """Get diff between two versions of a note.
+
+        Args:
+            path: The path of the note
+            from_version: The starting version SHA
+            to_version: The ending version SHA
+
+        Returns:
+            NoteDiff object with diff information
+        """
+        return self.git.diff_versions(path, from_version, to_version)
+
+    def restore_note_version(
+        self,
+        path: str,
+        version: str,
+        author: str | None = None,
+    ) -> Note | None:
+        """Restore a note to a previous version.
+
+        This creates a new commit with the old content, preserving history.
+
+        Args:
+            path: The path of the note
+            version: The version SHA to restore
+            author: Optional author name for the restore commit
+
+        Returns:
+            The restored Note object, or None if version not found
+        """
+        old_note = self.get_note_version(path, version)
+        if old_note is None:
+            return None
+
+        # Update the note with old content (creates new commit)
+        result = self.update_note(
+            path=path,
+            title=old_note.title,
+            content=old_note.content,
+            tags=old_note.tags,
+            author=author,
+        )
+
+        if result is None:
+            return None
+        return result.note
