@@ -2,6 +2,12 @@
 
 AI-friendly note-taking solution with MCP integration and web UI.
 
+## Requirements
+
+- Python 3.14+
+- [uv](https://docs.astral.sh/uv/) package manager
+- **git** (optional, for version history)
+
 ## Installation
 
 ```bash
