@@ -94,12 +94,14 @@ def create_note_form(
     title: str = Form(...),
     tags: str = Form(""),
     content: str = Form(""),
+    username: str = Depends(verify_credentials),
 ) -> RedirectResponse | HTMLResponse:
     """Handle new note form submission."""
     service = _get_service()
+    author = username or "web"
     tag_list = [t.strip() for t in tags.split(",") if t.strip()]
     try:
-        service.create_note(path=path, title=title, content=content, tags=tag_list)
+        service.create_note(path=path, title=title, content=content, tags=tag_list, author=author)
     except (ValidationError, ValueError) as e:
         return templates.TemplateResponse(
             request=request,
@@ -233,10 +235,13 @@ def edit_note_form(request: Request, path: str) -> HTMLResponse | RedirectRespon
 
 
 @router.post("/notes/{path:path}/delete")
-def delete_note_form(path: str) -> RedirectResponse:
+def delete_note_form(
+    path: str, username: str = Depends(verify_credentials)
+) -> RedirectResponse:
     """Handle delete note form submission."""
     service = _get_service()
-    service.delete_note(path)
+    author = username or "web"
+    service.delete_note(path, author=author)
     return RedirectResponse(url="/", status_code=303)
 
 
@@ -269,9 +274,11 @@ def update_note_form(
     title: str = Form(...),
     tags: str = Form(""),
     content: str = Form(""),
+    username: str = Depends(verify_credentials),
 ) -> RedirectResponse | HTMLResponse:
     """Handle edit note form submission."""
     service = _get_service()
+    author = username or "web"
     tag_list = [t.strip() for t in tags.split(",") if t.strip()]
     final_path = new_path.strip()
 
@@ -286,6 +293,7 @@ def update_note_form(
             content=content,
             tags=tag_list,
             new_path=move_path,
+            author=author,
         )
     except (ValidationError, ValueError) as e:
         # Create a mock note object for re-displaying the form

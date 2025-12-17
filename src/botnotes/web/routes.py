@@ -233,15 +233,19 @@ def get_note(path: str) -> NoteResponse:
 
 
 @router.post("/notes", status_code=201)
-def create_note(body: NoteCreate) -> NoteResponse:
+def create_note(
+    body: NoteCreate, username: str = Depends(verify_credentials)
+) -> NoteResponse:
     """Create a new note."""
     service = _get_service()
+    author = username or "web"
     try:
         note = service.create_note(
             path=body.path,
             title=body.title,
             content=body.content,
             tags=body.tags,
+            author=author,
         )
     except (ValidationError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
@@ -257,15 +261,19 @@ def create_note(body: NoteCreate) -> NoteResponse:
 
 
 @router.put("/notes/{path:path}")
-def update_note(path: str, body: NoteUpdate) -> NoteResponse:
+def update_note(
+    path: str, body: NoteUpdate, username: str = Depends(verify_credentials)
+) -> NoteResponse:
     """Update an existing note."""
     service = _get_service()
+    author = username or "web"
     try:
         result = service.update_note(
             path=path,
             title=body.title,
             content=body.content,
             tags=body.tags,
+            author=author,
         )
     except (ValidationError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
@@ -285,10 +293,11 @@ def update_note(path: str, body: NoteUpdate) -> NoteResponse:
 
 
 @router.delete("/notes/{path:path}", status_code=204)
-def delete_note(path: str) -> None:
+def delete_note(path: str, username: str = Depends(verify_credentials)) -> None:
     """Delete a note."""
     service = _get_service()
-    result = service.delete_note(path)
+    author = username or "web"
+    result = service.delete_note(path, author=author)
 
     if not result.deleted:
         raise HTTPException(status_code=404, detail=f"Note not found: {path}")
