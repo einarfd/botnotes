@@ -102,18 +102,28 @@ Add via Cursor Settings > MCP, or edit `mcp.json`:
 
 ### Claude Code
 
-Configure via `/mcp` command, or add to `~/.claude.json`:
+Add via CLI (recommended):
+
+```bash
+claude mcp add --transport stdio botnotes -- \
+  uv run --directory /path/to/botnotes botnotes --author claude-code
+```
+
+Or add to `~/.claude.json` manually:
 
 ```json
 {
   "mcpServers": {
     "botnotes": {
+      "type": "stdio",
       "command": "uv",
       "args": ["run", "--directory", "/path/to/botnotes", "botnotes", "--author", "claude-code"]
     }
   }
 }
 ```
+
+Use `/mcp` within Claude Code to manage connections and check status.
 
 ### Perplexity (macOS)
 
@@ -182,6 +192,29 @@ botnotes.example.com {
       "password": true
     }
   ]
+}
+```
+
+**Claude Code** - native HTTP support:
+
+```bash
+claude mcp add --transport http botnotes https://botnotes.example.com/mcp \
+  --header "Authorization: Bearer YOUR_TOKEN"
+```
+
+Or in `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "botnotes": {
+      "type": "http",
+      "url": "https://botnotes.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN"
+      }
+    }
+  }
 }
 ```
 
