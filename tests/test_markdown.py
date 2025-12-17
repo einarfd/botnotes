@@ -147,6 +147,77 @@ class TestSanitization:
         assert "<em>italic</em>" in result
 
 
+class TestMarkdownPlugins:
+    """Tests for additional markdown plugins."""
+
+    def test_renders_table(self) -> None:
+        """Test tables are rendered."""
+        content = "| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |"
+        result = render_markdown(content)
+        assert "<table>" in result
+        assert "<th>Header 1</th>" in result
+        assert "<td>Cell 1</td>" in result
+
+    def test_renders_task_list_unchecked(self) -> None:
+        """Test unchecked task list items are rendered."""
+        result = render_markdown("- [ ] Todo item")
+        assert "<input" in result
+        assert 'type="checkbox"' in result
+        assert "checked" not in result or 'checked=""' not in result
+
+    def test_renders_task_list_checked(self) -> None:
+        """Test checked task list items are rendered."""
+        result = render_markdown("- [x] Done item")
+        assert "<input" in result
+        assert 'type="checkbox"' in result
+        assert "checked" in result
+
+    def test_renders_strikethrough(self) -> None:
+        """Test strikethrough text is rendered."""
+        result = render_markdown("This is ~~deleted~~ text.")
+        assert "<del>deleted</del>" in result
+
+    def test_renders_footnote(self) -> None:
+        """Test footnotes are rendered."""
+        content = "Text with footnote[^1].\n\n[^1]: Footnote content."
+        result = render_markdown(content)
+        assert "<sup" in result
+        assert "footnote" in result.lower()
+        assert "Footnote content" in result
+
+    def test_renders_definition_list(self) -> None:
+        """Test definition lists are rendered."""
+        content = "Term\n:   Definition here"
+        result = render_markdown(content)
+        assert "<dl>" in result
+        assert "<dt>Term</dt>" in result
+        assert "<dd>" in result
+        assert "Definition here" in result
+
+    def test_renders_inline_math(self) -> None:
+        """Test inline math is rendered with math class."""
+        result = render_markdown(r"Inline $E=mc^2$ math")
+        assert 'class="math"' in result
+        assert "E=mc^2" in result
+
+    def test_renders_display_math(self) -> None:
+        """Test display math is rendered."""
+        result = render_markdown("$$\nx^2 + y^2 = z^2\n$$")
+        assert 'class="math"' in result
+        assert "x^2" in result
+
+    def test_autolinks_url(self) -> None:
+        """Test bare URLs are auto-linked."""
+        result = render_markdown("Visit https://example.com for more")
+        assert '<a href="https://example.com"' in result
+        assert ">https://example.com</a>" in result
+
+    def test_autolinks_url_in_text(self) -> None:
+        """Test URLs in middle of text are auto-linked."""
+        result = render_markdown("Check out https://example.com/path and more")
+        assert '<a href="https://example.com/path"' in result
+
+
 class TestEdgeCases:
     """Edge case tests."""
 
