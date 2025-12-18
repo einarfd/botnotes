@@ -14,6 +14,7 @@ from botnotes.cli import (
     import_backup,
     init_git,
     main,
+    migrate,
     rebuild_indexes,
     web_clear_password,
     web_set_password,
@@ -600,19 +601,17 @@ class TestInitGit:
 
         with (
             patch("botnotes.cli.get_config") as mock_config,
-            patch("botnotes.cli.GitRepository") as mock_git_class,
+            patch("botnotes.cli.ensure_git_initialized") as mock_ensure_git,
             patch("botnotes.cli.NoteService") as mock_service_class,
         ):
             mock_config.return_value.notes_dir = notes_dir
-            mock_git = MagicMock()
-            mock_git_class.return_value = mock_git
             mock_service = MagicMock()
             mock_service.list_notes.return_value = []
             mock_service_class.return_value = mock_service
 
             init_git()
 
-            mock_git.ensure_initialized.assert_called_once()
+            mock_ensure_git.assert_called_once_with(notes_dir, [])
             captured = capsys.readouterr()
             assert "Initializing git repository" in captured.out
             assert "no existing notes to commit" in captured.out
@@ -624,23 +623,19 @@ class TestInitGit:
 
         with (
             patch("botnotes.cli.get_config") as mock_config,
-            patch("botnotes.cli.GitRepository") as mock_git_class,
+            patch("botnotes.cli.ensure_git_initialized") as mock_ensure_git,
             patch("botnotes.cli.NoteService") as mock_service_class,
-            patch("subprocess.run") as mock_run,
         ):
             mock_config.return_value.notes_dir = notes_dir
-            mock_git = MagicMock()
-            mock_git_class.return_value = mock_git
             mock_service = MagicMock()
             mock_service.list_notes.return_value = ["note1", "note2", "folder/note3"]
             mock_service_class.return_value = mock_service
-            mock_run.return_value = MagicMock(returncode=0)
 
             init_git()
 
-            mock_git.ensure_initialized.assert_called_once()
-            # Should call git add and git commit
-            assert mock_run.call_count == 2
+            mock_ensure_git.assert_called_once_with(
+                notes_dir, ["note1", "note2", "folder/note3"]
+            )
             captured = capsys.readouterr()
             assert "Committed 3 existing notes" in captured.out
 
@@ -656,4 +651,144 @@ class TestInitGitCommand:
         ):
             main()
             mock_init_git.assert_called_once()
+
+
+class TestMigrate:
+    """Tests for the migrate function."""
+
+    def test_migrate_already_at_version(self, capsys: pytest.CaptureFixture[str]):
+        """Test migrate when already at target version."""
+        with patch("botnotes.cli.Config.load") as mock_load:
+            mock_config = MagicMock()
+            mock_config.data_version = 2
+            mock_load.return_value = mock_config
+
+            migrate(yes=True)
+
+            captured = capsys.readouterr()
+            assert "Already at data version" in captured.out
+            assert "No migration needed" in captured.out
+
+    def test_migrate_no_overlaps(self, capsys: pytest.CaptureFixture[str]):
+        """Test migrate with no overlapping notes."""
+        with (
+            patch("botnotes.cli.Config.load") as mock_load,
+            patch("botnotes.cli.NoteService") as mock_service_class,
+        ):
+            mock_config = MagicMock()
+            mock_config.data_version = 1
+            mock_load.return_value = mock_config
+
+            mock_service = MagicMock()
+            mock_service.list_notes.return_value = ["note1", "note2"]
+            mock_service_class.return_value = mock_service
+
+            migrate(yes=True)
+
+            mock_config.save.assert_called_once()
+            assert mock_config.data_version == 2
+            captured = capsys.readouterr()
+            assert "No overlapping notes found" in captured.out
+            assert "Data version updated to 2" in captured.out
+
+    def test_migrate_with_overlaps(self, capsys: pytest.CaptureFixture[str]):
+        """Test migrate with overlapping notes."""
+        with (
+            patch("botnotes.cli.Config.load") as mock_load,
+            patch("botnotes.cli.NoteService") as mock_service_class,
+        ):
+            mock_config = MagicMock()
+            mock_config.data_version = 1
+            mock_load.return_value = mock_config
+
+            mock_service = MagicMock()
+            mock_service.list_notes.return_value = ["projects", "projects/foo"]
+            mock_service_class.return_value = mock_service
+
+            migrate(yes=True)
+
+            # Should move the overlapping note
+            mock_service.update_note.assert_called_once_with(
+                "projects", new_path="projects/index", author="migration"
+            )
+            mock_config.save.assert_called_once()
+            assert mock_config.data_version == 2
+            captured = capsys.readouterr()
+            assert "Found 1 overlapping note" in captured.out
+            assert "Moved projects → projects/index" in captured.out
+
+    def test_migrate_aborted(self, capsys: pytest.CaptureFixture[str]):
+        """Test migrate aborted by user."""
+        with (
+            patch("botnotes.cli.Config.load") as mock_load,
+            patch("botnotes.cli.NoteService") as mock_service_class,
+            patch("builtins.input", return_value="n"),
+        ):
+            mock_config = MagicMock()
+            mock_config.data_version = 1
+            mock_load.return_value = mock_config
+
+            mock_service = MagicMock()
+            mock_service.list_notes.return_value = ["projects", "projects/foo"]
+            mock_service_class.return_value = mock_service
+
+            migrate(yes=False)
+
+            mock_service.update_note.assert_not_called()
+            mock_config.save.assert_not_called()
+            captured = capsys.readouterr()
+            assert "Aborted" in captured.out
+
+    def test_migrate_error_handling(self, capsys: pytest.CaptureFixture[str]):
+        """Test migrate handles errors gracefully."""
+        with (
+            patch("botnotes.cli.Config.load") as mock_load,
+            patch("botnotes.cli.NoteService") as mock_service_class,
+        ):
+            mock_config = MagicMock()
+            mock_config.data_version = 1
+            mock_load.return_value = mock_config
+
+            mock_service = MagicMock()
+            mock_service.list_notes.return_value = ["projects", "projects/foo"]
+            mock_service.update_note.side_effect = ValueError("Note already exists")
+            mock_service_class.return_value = mock_service
+
+            migrate(yes=True)
+
+            mock_config.save.assert_not_called()
+            captured = capsys.readouterr()
+            assert "Error moving projects" in captured.out
+            assert "Migration aborted" in captured.out
+
+
+class TestMigrateCommand:
+    """Tests for migrate via main()."""
+
+    def test_migrate_command(self):
+        """Test that migrate command calls migrate."""
+        with (
+            patch("botnotes.cli.migrate") as mock_migrate,
+            patch("sys.argv", ["notes-admin", "migrate"]),
+        ):
+            main()
+            mock_migrate.assert_called_once_with(False)
+
+    def test_migrate_command_with_yes(self):
+        """Test that migrate --yes calls migrate with yes=True."""
+        with (
+            patch("botnotes.cli.migrate") as mock_migrate,
+            patch("sys.argv", ["notes-admin", "migrate", "--yes"]),
+        ):
+            main()
+            mock_migrate.assert_called_once_with(True)
+
+    def test_migrate_command_with_y(self):
+        """Test that migrate -y calls migrate with yes=True."""
+        with (
+            patch("botnotes.cli.migrate") as mock_migrate,
+            patch("sys.argv", ["notes-admin", "migrate", "-y"]),
+        ):
+            main()
+            mock_migrate.assert_called_once_with(True)
 

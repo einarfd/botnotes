@@ -5,9 +5,9 @@ import secrets
 from pathlib import Path
 
 from botnotes.backup import clear_notes, export_notes, import_notes
-from botnotes.config import Config, get_config
+from botnotes.config import REQUIRED_DATA_VERSION, Config, get_config
+from botnotes.migrations import ensure_git_initialized, find_overlapping_notes, run_migrations
 from botnotes.services import NoteService
-from botnotes.storage.git_repo import GitRepository
 
 
 def rebuild_indexes() -> None:
@@ -207,40 +207,70 @@ def init_git() -> None:
 
     print(f"Initializing git repository in {config.notes_dir}...")
 
-    # Create git repository
-    git = GitRepository(config.notes_dir)
-    git.ensure_initialized()
-
-    # Count existing notes and create initial commit if any exist
     service = NoteService()
     note_paths = service.list_notes()
 
+    ensure_git_initialized(config.notes_dir, note_paths)
+
     if note_paths:
-        # Stage all existing markdown files
-        import subprocess
-
-        subprocess.run(
-            ["git", "add", "*.md"],
-            cwd=config.notes_dir,
-            capture_output=True,
-            check=True,
-        )
-
-        # Create initial commit
-        subprocess.run(
-            [
-                "git", "commit",
-                "-m", "Initial import of existing notes",
-                "--author", "BotNotes System <botnotes@local>",
-            ],
-            cwd=config.notes_dir,
-            capture_output=True,
-            check=True,
-        )
-
         print(f"Done! Committed {len(note_paths)} existing notes.")
     else:
         print("Done! Git repository initialized (no existing notes to commit).")
+
+
+def migrate(yes: bool = False) -> None:
+    """Migrate from v1 (overlapping notes) to v2 (index convention).
+
+    Args:
+        yes: Skip confirmation prompt.
+    """
+    config = Config.load()
+
+    # Check if already migrated
+    if config.data_version >= REQUIRED_DATA_VERSION:
+        print(f"Already at data version {config.data_version}. No migration needed.")
+        return
+
+    print(f"Current data version: {config.data_version}")
+    print(f"Target data version: {REQUIRED_DATA_VERSION}")
+    print()
+
+    service = NoteService()
+    overlaps = find_overlapping_notes(service)
+
+    if not overlaps:
+        print("No overlapping notes found.")
+        print("Updating data version...")
+        result = run_migrations(config, service)
+        print(f"Done! Data version updated to {result.to_version}.")
+        return
+
+    print(f"Found {len(overlaps)} overlapping note(s) to migrate:")
+    for old_path, new_path in overlaps:
+        print(f"  {old_path} → {new_path}")
+    print()
+
+    if not yes:
+        response = input("Proceed with migration? [y/N] ")
+        if response.strip().lower() != "y":
+            print("Aborted.")
+            return
+
+    print("Migrating notes...")
+    result = run_migrations(config, service)
+
+    for old_path, new_path in result.notes_moved:
+        print(f"  Moved {old_path} → {new_path}")
+
+    if result.errors:
+        for error in result.errors:
+            print(f"  {error}")
+        print("Migration aborted. Please fix the error and try again.")
+        return
+
+    print()
+    moved_count = len(result.notes_moved)
+    print(f"Done! Migrated {moved_count} notes. Data version updated to {result.to_version}.")
 
 
 def main() -> None:
@@ -256,6 +286,17 @@ def main() -> None:
 
     # Init-git command
     subparsers.add_parser("init-git", help="Initialize git repository for version history")
+
+    # Migrate command
+    migrate_parser = subparsers.add_parser(
+        "migrate", help="Migrate data to latest version (v1 overlapping → v2 index)"
+    )
+    migrate_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
 
     # Export command
     export_parser = subparsers.add_parser("export", help="Export notes to a tar.gz archive")
@@ -321,6 +362,8 @@ def main() -> None:
         rebuild_indexes()
     elif args.command == "init-git":
         init_git()
+    elif args.command == "migrate":
+        migrate(args.yes)
     elif args.command == "export":
         export_backup(args.output)
     elif args.command == "import":
