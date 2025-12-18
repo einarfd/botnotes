@@ -34,8 +34,17 @@ from botnotes.tools import history, links, notes, search, tags  # noqa: F401, E4
 def main() -> None:
     """Run the MCP server."""
     import argparse
+    import sys
 
-    from botnotes.config import Config
+    from botnotes.config import Config, DataVersionError
+
+    # Check data version before starting
+    config = Config.load()
+    try:
+        config.validate_data_version()
+    except DataVersionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Parse --author flag for stdio mode
     parser = argparse.ArgumentParser(description="BotNotes MCP server")
@@ -47,8 +56,6 @@ def main() -> None:
     args, _ = parser.parse_known_args()
 
     set_current_author(args.author)
-
-    config = Config.load()
 
     if config.server.transport == "stdio":
         mcp.run()

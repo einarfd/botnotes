@@ -7,6 +7,23 @@ from typing import Any, Literal
 import tomli_w
 from pydantic import BaseModel
 
+# Required data version for the application to run.
+# Increment this when making breaking changes to the storage format.
+# Users must run 'botnotes-admin migrate' to upgrade their data.
+REQUIRED_DATA_VERSION = 2
+
+
+class DataVersionError(Exception):
+    """Raised when data version doesn't match required version."""
+
+    def __init__(self, current: int, required: int) -> None:
+        self.current = current
+        self.required = required
+        super().__init__(
+            f"Data version {current} found, but version {required} required. "
+            "Run 'botnotes-admin migrate' to upgrade."
+        )
+
 
 class ServerConfig(BaseModel):
     """Server configuration."""
@@ -34,6 +51,7 @@ class Config(BaseModel):
 
     notes_dir: Path = Path.home() / ".local" / "botnotes" / "notes"
     index_dir: Path = Path.home() / ".local" / "botnotes" / "index"
+    data_version: int = 1  # Storage format version, updated by migrate command
     server: ServerConfig = ServerConfig()
     auth: AuthConfig = AuthConfig()
     web: WebConfig = WebConfig()
@@ -50,6 +68,15 @@ class Config(BaseModel):
                 "HTTP mode requires authentication. "
                 "Add API keys to [auth.keys] in config.toml"
             )
+
+    def validate_data_version(self) -> None:
+        """Validate data version matches required version.
+
+        Raises:
+            DataVersionError: If data version doesn't match required version.
+        """
+        if self.data_version != REQUIRED_DATA_VERSION:
+            raise DataVersionError(self.data_version, REQUIRED_DATA_VERSION)
 
     @classmethod
     def load(cls, path: Path | None = None) -> Config:
@@ -79,6 +106,9 @@ class Config(BaseModel):
 
         # Build TOML-serializable dict, excluding defaults
         data: dict[str, Any] = {}
+
+        # Always include data_version (critical for migrations)
+        data["data_version"] = self.data_version
 
         # Only include non-default server settings
         server_data: dict[str, Any] = {}

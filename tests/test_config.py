@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from botnotes.config import AuthConfig, Config, ServerConfig
+from botnotes.config import (
+    REQUIRED_DATA_VERSION,
+    AuthConfig,
+    Config,
+    DataVersionError,
+    ServerConfig,
+)
 
 
 class TestServerConfig:
@@ -123,3 +129,63 @@ port = 3000
 
         assert config.notes_dir.exists()
         assert config.index_dir.exists()
+
+
+class TestDataVersioning:
+    """Tests for data versioning."""
+
+    def test_default_data_version(self) -> None:
+        """Default data version is 1."""
+        config = Config()
+        assert config.data_version == 1
+
+    def test_required_data_version_constant(self) -> None:
+        """Required data version constant is defined."""
+        assert REQUIRED_DATA_VERSION == 2
+
+    def test_validate_data_version_fails_on_mismatch(self) -> None:
+        """validate_data_version raises when version doesn't match required."""
+        config = Config(data_version=1)
+        with pytest.raises(DataVersionError) as exc_info:
+            config.validate_data_version()
+
+        assert exc_info.value.current == 1
+        assert exc_info.value.required == REQUIRED_DATA_VERSION
+        assert "botnotes-admin migrate" in str(exc_info.value)
+
+    def test_validate_data_version_passes_on_match(self) -> None:
+        """validate_data_version passes when version matches required."""
+        config = Config(data_version=REQUIRED_DATA_VERSION)
+        config.validate_data_version()  # Should not raise
+
+    def test_data_version_error_message(self) -> None:
+        """DataVersionError has informative message."""
+        error = DataVersionError(current=1, required=2)
+        assert "version 1" in str(error)
+        assert "version 2" in str(error)
+        assert "botnotes-admin migrate" in str(error)
+
+    def test_load_data_version_from_toml(self, tmp_path: Path) -> None:
+        """Data version is loaded from TOML file."""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text("data_version = 2\n")
+
+        config = Config.load(config_file)
+        assert config.data_version == 2
+
+    def test_save_includes_data_version(self, tmp_path: Path) -> None:
+        """Save includes data_version in output."""
+        config_file = tmp_path / "config.toml"
+        config = Config(data_version=2)
+        config.save(config_file)
+
+        content = config_file.read_text()
+        assert "data_version = 2" in content
+
+    def test_load_without_data_version_uses_default(self, tmp_path: Path) -> None:
+        """Loading config without data_version uses default of 1."""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text("[server]\nport = 3000\n")
+
+        config = Config.load(config_file)
+        assert config.data_version == 1

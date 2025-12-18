@@ -34,8 +34,19 @@ def health_check() -> dict[str, str]:
 def main() -> None:
     """Run the web server."""
     import argparse
+    import sys
 
     import uvicorn
+
+    from botnotes.config import Config, DataVersionError
+
+    # Check data version before starting
+    config = Config.load()
+    try:
+        config.validate_data_version()
+    except DataVersionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     parser = argparse.ArgumentParser(description="Run the BotNotes web server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
