@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{{ index_note.title }} - Notes{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ index_note.title }}</h2>
+    <div class="metadata">
+        <a href="/notes/{{ index_note.path }}/edit">Edit</a> |
+        <a href="/notes/{{ index_note.path }}/history">History</a>
+        {% if index_note.tags %}
+        | {% for tag in index_note.tags %}<a href="/tags/{{ tag }}" class="tag">{{ tag }}</a>{% endfor %}
+        {% endif %}
+    </div>
+    <div class="note-content rendered-markdown">
+        {{ index_note.content|render_markdown }}
+    </div>
+</div>
+
+<div class="card">
+    <div class="actions">
+        <a href="/folder" class="btn">Browse All Notes</a>
+        <a href="/new" class="btn btn-secondary">New Note</a>
+    </div>
+</div>
+{% endblock %}

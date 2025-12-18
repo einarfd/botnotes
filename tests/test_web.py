@@ -526,6 +526,149 @@ class TestHTMLViews:
         assert response.status_code == 200
         assert "No contents in this folder" in response.text
 
+    def test_home_with_index_note(self, client: TestClient):
+        """Test home page shows index note content when it exists."""
+        client.post(
+            "/api/notes",
+            json={
+                "path": "index",
+                "title": "Welcome",
+                "content": "This is the home page content.",
+            },
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "other", "title": "Other Note", "content": ""},
+        )
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "Welcome" in response.text
+        assert "This is the home page content." in response.text
+        assert "Browse All Notes" in response.text
+        # Other notes should not appear on home page
+        assert "Other Note" not in response.text
+
+    def test_home_without_index_note(self, client: TestClient):
+        """Test home page shows notes list when no index note exists."""
+        client.post(
+            "/api/notes",
+            json={"path": "note1", "title": "Note 1", "content": ""},
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "note2", "title": "Note 2", "content": ""},
+        )
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "Note 1" in response.text
+        assert "Note 2" in response.text
+        # Should not have the index note specific elements
+        assert "Browse All Notes" not in response.text
+
+    def test_folder_view_with_index_note(self, client: TestClient):
+        """Test folder view shows index note content at top."""
+        client.post(
+            "/api/notes",
+            json={
+                "path": "projects/index",
+                "title": "Projects Overview",
+                "content": "Welcome to the projects folder.",
+            },
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "projects/proj1", "title": "Project 1", "content": ""},
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "projects/proj2", "title": "Project 2", "content": ""},
+        )
+
+        response = client.get("/folder/projects")
+
+        assert response.status_code == 200
+        assert "Projects Overview" in response.text
+        assert "Welcome to the projects folder." in response.text
+        # The folder contents should also appear
+        assert "Project 1" in response.text
+        assert "Project 2" in response.text
+        # Should have "Contents" heading when index exists
+        assert "Contents" in response.text
+
+    def test_folder_view_without_index_note(self, client: TestClient):
+        """Test folder view shows folder name when no index note exists."""
+        client.post(
+            "/api/notes",
+            json={"path": "projects/proj1", "title": "Project 1", "content": ""},
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "projects/proj2", "title": "Project 2", "content": ""},
+        )
+
+        response = client.get("/folder/projects")
+
+        assert response.status_code == 200
+        # Should show the folder name as heading
+        assert "projects" in response.text
+        assert "Project 1" in response.text
+        assert "Project 2" in response.text
+
+    def test_folder_view_index_not_in_notes_list(self, client: TestClient):
+        """Test that index note is not listed in folder notes."""
+        client.post(
+            "/api/notes",
+            json={
+                "path": "docs/index",
+                "title": "Docs Index",
+                "content": "Index content.",
+            },
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "docs/guide", "title": "Guide", "content": ""},
+        )
+
+        response = client.get("/folder/docs")
+
+        assert response.status_code == 200
+        # Index should be rendered at top
+        assert "Docs Index" in response.text
+        assert "Index content." in response.text
+        # Guide should be in list
+        assert "Guide" in response.text
+        # But index should not appear in the notes list (path shown)
+        html = response.text
+        # Count occurrences - index should appear once (in the rendered content)
+        # not twice (once rendered, once in list)
+        assert html.count("docs/index") <= 2  # Edit and History links are okay
+
+    def test_top_level_folder_view_with_index(self, client: TestClient):
+        """Test top-level folder view shows index note content."""
+        client.post(
+            "/api/notes",
+            json={
+                "path": "index",
+                "title": "Root Index",
+                "content": "Top level index content.",
+            },
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "toplevel", "title": "Top Level Note", "content": ""},
+        )
+
+        response = client.get("/folder")
+
+        assert response.status_code == 200
+        assert "Root Index" in response.text
+        assert "Top level index content." in response.text
+        assert "Top Level Note" in response.text
+
 
 class TestAdminViews:
     """Tests for admin page."""

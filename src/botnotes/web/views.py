@@ -39,8 +39,24 @@ def _build_breadcrumbs(path: str) -> list[dict[str, str]]:
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request) -> HTMLResponse:
-    """Show all notes."""
+    """Show the home page.
+
+    If an 'index' note exists, renders it as the home page content.
+    Otherwise, shows the flat list of all notes.
+    """
     service = _get_service()
+
+    # Check if root index note exists
+    index_note = service.read_note("index")
+    if index_note:
+        # Show index note content with link to browse all notes
+        return templates.TemplateResponse(
+            request=request,
+            name="home_index.html",
+            context={"index_note": index_note},
+        )
+
+    # No index note - show flat list of all notes
     paths = service.list_notes()
 
     notes = []
@@ -370,14 +386,19 @@ def view_top_level_folder(request: Request) -> HTMLResponse:
     # Cast to satisfy mypy - we know the types
     note_paths = contents["notes"]
     subfolders = contents["subfolders"]
+    has_index = contents["has_index"]
     assert isinstance(note_paths, list)
     assert isinstance(subfolders, list)
+    assert isinstance(has_index, bool)
 
     notes = []
     for path in note_paths:
         note = service.read_note(path)
         if note:
             notes.append(note)
+
+    # Get index note content if it exists
+    index_note = service.read_note("index") if has_index else None
 
     return templates.TemplateResponse(
         request=request,
@@ -387,6 +408,7 @@ def view_top_level_folder(request: Request) -> HTMLResponse:
             "subfolders": subfolders,
             "folder": "",
             "breadcrumbs": [],
+            "index_note": index_note,
         },
     )
 
@@ -400,14 +422,19 @@ def view_folder(request: Request, path: str) -> HTMLResponse:
     # Cast to satisfy mypy - we know the types
     note_paths = contents["notes"]
     subfolders = contents["subfolders"]
+    has_index = contents["has_index"]
     assert isinstance(note_paths, list)
     assert isinstance(subfolders, list)
+    assert isinstance(has_index, bool)
 
     notes = []
     for note_path in note_paths:
         note = service.read_note(note_path)
         if note:
             notes.append(note)
+
+    # Get index note content if it exists
+    index_note = service.read_note(f"{path}/index") if has_index else None
 
     return templates.TemplateResponse(
         request=request,
@@ -417,5 +444,6 @@ def view_folder(request: Request, path: str) -> HTMLResponse:
             "subfolders": subfolders,
             "folder": path,
             "breadcrumbs": _build_breadcrumbs(path),
+            "index_note": index_note,
         },
     )
