@@ -37,12 +37,12 @@ def _build_breadcrumbs(path: str) -> list[dict[str, str]]:
     return breadcrumbs
 
 
-@router.get("/", response_class=HTMLResponse)
-def index(request: Request) -> HTMLResponse:
+@router.get("/", response_class=HTMLResponse, response_model=None)
+def index(request: Request) -> HTMLResponse | RedirectResponse:
     """Show the home page.
 
     If an 'index' note exists, renders it as the home page content.
-    Otherwise, shows the flat list of all notes.
+    Otherwise, redirects to the browse view.
     """
     service = _get_service()
 
@@ -56,20 +56,8 @@ def index(request: Request) -> HTMLResponse:
             context={"index_note": index_note},
         )
 
-    # No index note - show flat list of all notes
-    paths = service.list_notes()
-
-    notes = []
-    for path in paths:
-        note = service.read_note(path)
-        if note:
-            notes.append(note)
-
-    return templates.TemplateResponse(
-        request=request,
-        name="notes_list.html",
-        context={"notes": notes},
-    )
+    # No index note - redirect to browse view
+    return RedirectResponse(url="/folder", status_code=303)
 
 
 @router.get("/search-results", response_class=HTMLResponse)

@@ -533,7 +533,7 @@ class TestHTMLViews:
             json={
                 "path": "index",
                 "title": "Welcome",
-                "content": "This is the home page content.",
+                "content": "This is **bold** content.",
             },
         )
         client.post(
@@ -545,13 +545,15 @@ class TestHTMLViews:
 
         assert response.status_code == 200
         assert "Welcome" in response.text
-        assert "This is the home page content." in response.text
+        # Markdown should be rendered as HTML, not escaped
+        assert "<strong>bold</strong>" in response.text
+        assert "&lt;strong&gt;" not in response.text
         assert "Browse All Notes" in response.text
         # Other notes should not appear on home page
         assert "Other Note" not in response.text
 
     def test_home_without_index_note(self, client: TestClient):
-        """Test home page shows notes list when no index note exists."""
+        """Test home page redirects to folder view when no index note exists."""
         client.post(
             "/api/notes",
             json={"path": "note1", "title": "Note 1", "content": ""},
@@ -561,13 +563,10 @@ class TestHTMLViews:
             json={"path": "note2", "title": "Note 2", "content": ""},
         )
 
-        response = client.get("/")
+        response = client.get("/", follow_redirects=False)
 
-        assert response.status_code == 200
-        assert "Note 1" in response.text
-        assert "Note 2" in response.text
-        # Should not have the index note specific elements
-        assert "Browse All Notes" not in response.text
+        assert response.status_code == 303
+        assert response.headers["location"] == "/folder"
 
     def test_folder_view_with_index_note(self, client: TestClient):
         """Test folder view shows index note content at top."""
@@ -576,7 +575,7 @@ class TestHTMLViews:
             json={
                 "path": "projects/index",
                 "title": "Projects Overview",
-                "content": "Welcome to the projects folder.",
+                "content": "Welcome to the **projects** folder.",
             },
         )
         client.post(
@@ -592,7 +591,9 @@ class TestHTMLViews:
 
         assert response.status_code == 200
         assert "Projects Overview" in response.text
-        assert "Welcome to the projects folder." in response.text
+        # Markdown should be rendered as HTML, not escaped
+        assert "<strong>projects</strong>" in response.text
+        assert "&lt;strong&gt;" not in response.text
         # The folder contents should also appear
         assert "Project 1" in response.text
         assert "Project 2" in response.text
