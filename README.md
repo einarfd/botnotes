@@ -288,6 +288,10 @@ Command-line tools for administration:
 # Initialize version history for existing notes
 uv run botnotes-admin init-git
 
+# Migrate data to latest version
+uv run botnotes-admin migrate
+uv run botnotes-admin migrate --yes    # skip confirmation
+
 # Manage API keys for MCP HTTP mode
 uv run botnotes-admin auth list              # List configured keys
 uv run botnotes-admin auth add <name>        # Generate and add new key
@@ -313,6 +317,22 @@ uv run botnotes-admin import backup.tar.gz --replace    # replace all notes
 uv run botnotes-admin clear              # prompts for confirmation
 uv run botnotes-admin clear --force      # skip confirmation
 ```
+
+## Upgrading
+
+When upgrading BotNotes, you may need to migrate your data if the storage format has changed. If migration is required, you'll see an error like:
+
+```
+Error: Data version X found, but version Y required. Run 'botnotes-admin migrate' to upgrade.
+```
+
+Run the migration:
+
+```bash
+uv run botnotes-admin migrate
+```
+
+The migration shows what changes are needed and asks for confirmation. Use `--yes` to skip confirmation (useful for scripts).
 
 ## Development
 

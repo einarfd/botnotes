@@ -96,6 +96,22 @@ else
     echo "  MCP HTTP mode requires API keys. Run: uv run botnotes-admin auth add <name>"
 fi
 
+# Check data version
+REQUIRED_VERSION=$(cd "$PROJECT_DIR" && uv run python -c \
+    "from botnotes.config import REQUIRED_DATA_VERSION; print(REQUIRED_DATA_VERSION)" 2>/dev/null)
+if [[ -n "$REQUIRED_VERSION" ]] && [[ -f "$BOTNOTES_CONFIG" ]]; then
+    data_version=$(grep -E '^data_version\s*=' "$BOTNOTES_CONFIG" | sed 's/.*=\s*//' | tr -d ' ')
+    if [[ -z "$data_version" ]]; then
+        data_version=1  # No data_version means pre-migration
+    fi
+    if [[ "$data_version" -lt "$REQUIRED_VERSION" ]]; then
+        log_error "Data version $data_version found, but version $REQUIRED_VERSION required"
+        echo "  Run: uv run botnotes-admin migrate"
+    else
+        log_ok "Data version: $data_version"
+    fi
+fi
+
 # Mode-specific checks
 echo
 echo "Mode: $MODE"

@@ -172,6 +172,14 @@ Check prerequisites:
    curl -H "Authorization: Bearer YOUR_KEY" https://hostname/mcp
    ```
 
+### Data version mismatch
+
+If you see "Data version X found, but version Y required":
+
+```bash
+uv run botnotes-admin migrate
+```
+
 ## Domain Mode (VPS)
 
 For a VPS with a real domain:
