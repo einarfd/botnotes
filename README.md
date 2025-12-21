@@ -339,13 +339,13 @@ The migration shows what changes are needed and asks for confirmation. Use `--ye
 Run all checks (ruff, mypy, pytest):
 
 ```bash
-uv run nox -s check
+uv run poe check
 ```
 
 Or run individually:
 
 ```bash
-uv run pytest              # tests
-uv run ruff check src tests # linting
-uv run mypy src             # type checking
+uv run poe test       # tests
+uv run poe lint       # linting
+uv run poe typecheck  # type checking
 ```

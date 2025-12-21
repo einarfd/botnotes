@@ -23,7 +23,12 @@ uv run botnotes-web --port 3000  # custom port
 uv run botnotes-web --host 127.0.0.1  # localhost only
 
 # Run all checks (ruff, mypy, pytest)
-uv run nox -s check
+uv run poe check
+
+# Run individual checks
+uv run poe lint       # ruff
+uv run poe typecheck  # mypy
+uv run poe test       # pytest
 
 # Run tests
 uv run pytest
