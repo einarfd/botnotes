@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5CHODZ+NKC2kCO4XU2fwjxp3pZ6WS5T5P8K5CjQ5LmABkqKcCcHE" crossorigin="anonymous">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4IfIg" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRrY/1JHQC/reQCg" crossorigin="anonymous"></script>
+    <!-- Mermaid for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -293,6 +295,11 @@
         .note-content.rendered-markdown th {
             background: #f5f5f5;
         }
+        .note-content.rendered-markdown .mermaid {
+            text-align: center;
+            margin: 1em 0;
+            background: transparent;
+        }
         .actions {
             display: flex;
             gap: 10px;
@@ -508,6 +515,29 @@
                     throwOnError: false
                 });
             }
+        });
+
+        // Initialize Mermaid for diagram rendering
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+        function renderMermaidDiagrams(root) {
+            root.querySelectorAll('pre code.language-mermaid').forEach(block => {
+                const pre = block.parentElement;
+                const container = document.createElement('div');
+                container.className = 'mermaid';
+                container.textContent = block.textContent;
+                pre.replaceWith(container);
+            });
+            mermaid.run();
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMermaidDiagrams(document);
+        });
+
+        // Re-render mermaid after htmx swaps content
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            renderMermaidDiagrams(evt.detail.target);
         });
     </script>
 </body>

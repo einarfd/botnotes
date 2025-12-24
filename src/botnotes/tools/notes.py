@@ -22,7 +22,12 @@ def create_note(path: str, title: str, content: str, tags: list[str] | None = No
             just "index". Wiki links can use either [[folder]] or [[folder/index]]
             to link to index notes - both forms work.
         title: The title of the note
-        content: The markdown content of the note
+        content: The markdown content of the note. Supports:
+            - Standard markdown (headings, bold, italic, lists, links, etc.)
+            - Wiki links: [[path]] or [[path|display text]]
+            - Tables, task lists, strikethrough, footnotes, definition lists
+            - Math expressions: $inline$ and $$display$$ (rendered with KaTeX)
+            - Mermaid diagrams: ```mermaid code blocks (rendered in web UI)
         tags: Optional list of tags for categorization
 
     Returns:

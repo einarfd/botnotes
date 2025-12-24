@@ -42,6 +42,31 @@ Opens at http://localhost:3000 with:
 
 Options: `--port 3000`, `--host 127.0.0.1`, `--no-reload`
 
+## Markdown Features
+
+Notes support extended markdown with:
+
+- **Standard markdown**: headings, bold, italic, lists, links, images, blockquotes, code blocks
+- **Wiki links**: `[[path]]` or `[[path|display text]]` for linking between notes
+- **Tables**: GitHub-flavored markdown tables
+- **Task lists**: `- [ ] todo` and `- [x] done`
+- **Strikethrough**: `~~deleted~~`
+- **Footnotes**: `[^1]` references
+- **Definition lists**: term/definition pairs
+- **Math**: `$inline$` and `$$display$$` expressions (rendered with KaTeX)
+- **Mermaid diagrams**: fenced code blocks with `mermaid` language
+
+Example mermaid diagram:
+
+~~~markdown
+```mermaid
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Result]
+    B -->|No| D[Other]
+```
+~~~
+
 ## MCP Client Setup (Local)
 
 Configure your AI assistant to connect to the local MCP server.

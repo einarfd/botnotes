@@ -217,6 +217,13 @@ class TestMarkdownPlugins:
         result = render_markdown("Check out https://example.com/path and more")
         assert '<a href="https://example.com/path"' in result
 
+    def test_renders_mermaid_code_block(self) -> None:
+        """Test mermaid code blocks have correct class for client-side rendering."""
+        content = "```mermaid\ngraph TD\n    A --> B\n```"
+        result = render_markdown(content)
+        assert '<code class="language-mermaid">' in result
+        assert "graph TD" in result
+
 
 class TestEdgeCases:
     """Edge case tests."""
