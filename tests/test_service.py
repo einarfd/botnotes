@@ -770,3 +770,133 @@ class TestNoteServiceHistory:
         v2_note = service.get_note_version("test", v2_sha)
         assert v2_note is not None
         assert v2_note.title == "V2"
+
+
+class TestNoteServiceEdit:
+    """Tests for NoteService.edit_note."""
+
+    def test_edit_single_occurrence(self, config: Config):
+        """Test editing a single occurrence."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="Hello world")
+
+        result = service.edit_note("test", "world", "there")
+
+        assert result is not None
+        assert result.note.content == "Hello there"
+        assert result.replacements == 1
+
+    def test_edit_multiple_with_replace_all(self, config: Config):
+        """Test editing multiple occurrences with replace_all."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="foo bar foo baz foo")
+
+        result = service.edit_note("test", "foo", "qux", replace_all=True)
+
+        assert result is not None
+        assert result.note.content == "qux bar qux baz qux"
+        assert result.replacements == 3
+
+    def test_edit_not_found(self, config: Config):
+        """Test editing a nonexistent note returns None."""
+        service = NoteService(config)
+
+        result = service.edit_note("nonexistent", "old", "new")
+
+        assert result is None
+
+    def test_edit_string_not_found(self, config: Config):
+        """Test error when string to replace is not found."""
+        import pytest
+
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="Hello world")
+
+        with pytest.raises(ValueError, match="String not found"):
+            service.edit_note("test", "nonexistent", "replacement")
+
+    def test_edit_multiple_matches_without_replace_all(self, config: Config):
+        """Test error when multiple matches found without replace_all."""
+        import pytest
+
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="foo bar foo")
+
+        with pytest.raises(ValueError, match="Multiple matches"):
+            service.edit_note("test", "foo", "baz")
+
+    def test_edit_empty_old_string(self, config: Config):
+        """Test error when old_string is empty."""
+        import pytest
+
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="Hello")
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            service.edit_note("test", "", "new")
+
+    def test_edit_same_string_no_op(self, config: Config):
+        """Test that replacing with same string is a no-op."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="Hello world")
+
+        result = service.edit_note("test", "world", "world")
+
+        assert result is not None
+        assert result.note.content == "Hello world"
+        assert result.replacements == 0
+
+    def test_edit_multiline(self, config: Config):
+        """Test editing multiline strings."""
+        service = NoteService(config)
+        service.create_note(
+            path="test",
+            title="Test",
+            content="line1\nold line\nline3",
+        )
+
+        result = service.edit_note("test", "old line", "new line")
+
+        assert result is not None
+        assert result.note.content == "line1\nnew line\nline3"
+
+    def test_edit_special_chars(self, config: Config):
+        """Test that special regex characters are treated literally."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="foo.*bar")
+
+        result = service.edit_note("test", ".*", "++")
+
+        assert result is not None
+        assert result.note.content == "foo++bar"
+
+    def test_edit_updates_search_index(self, config: Config):
+        """Test that edit updates the search index."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="findable content")
+
+        # Verify searchable before edit
+        results = service.search_notes("findable")
+        assert len(results) == 1
+
+        # Edit to change content
+        service.edit_note("test", "findable", "searchable")
+
+        # Old term no longer matches
+        results = service.search_notes("findable")
+        assert len(results) == 0
+
+        # New term matches
+        results = service.search_notes("searchable")
+        assert len(results) == 1
+
+    def test_edit_commits_to_git(self, config: Config):
+        """Test that edit creates a git commit."""
+        service = NoteService(config)
+        service.create_note(path="test", title="Test", content="v1", author="alice")
+        service.edit_note("test", "v1", "v2", author="bob")
+
+        history = service.get_note_history("test")
+
+        assert len(history) == 2
+        assert history[0].author == "bob"

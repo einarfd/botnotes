@@ -188,6 +188,57 @@ def delete_note(path: str) -> str:
 
 
 @mcp.tool()
+def edit_note(
+    path: str,
+    old_string: str,
+    new_string: str,
+    replace_all: bool = False,
+) -> str:
+    """Edit a note by replacing a specific string.
+
+    Performs targeted string replacement within the note's content,
+    similar to Claude Code's Edit tool. Use this for surgical edits
+    instead of replacing the entire content.
+
+    Args:
+        path: The path/identifier of the note to edit
+        old_string: The exact string to find and replace
+        new_string: The replacement string
+        replace_all: If True, replace all occurrences; if False (default),
+            the edit will fail if there are multiple matches
+
+    Returns:
+        Confirmation message with replacement count
+
+    Raises:
+        ToolError: If note not found, string not found, or multiple matches
+            when replace_all is False
+    """
+    service = _get_service()
+    author = get_current_author()
+    try:
+        result = service.edit_note(
+            path=path,
+            old_string=old_string,
+            new_string=new_string,
+            replace_all=replace_all,
+            author=author,
+        )
+    except ValueError as e:
+        raise ToolError(f"Error editing note: {e}") from e
+
+    if result is None:
+        raise ToolError(f"Note not found: '{path}'")
+
+    if result.replacements == 0:
+        return f"No changes made to '{path}' (old_string equals new_string)"
+    elif result.replacements == 1:
+        return f"Edited note at '{path}' (1 replacement)"
+    else:
+        return f"Edited note at '{path}' ({result.replacements} replacements)"
+
+
+@mcp.tool()
 def list_notes() -> list[str]:
     """List all notes.
 

@@ -14,6 +14,7 @@ from botnotes.tools.links import get_backlinks
 from botnotes.tools.notes import (
     create_note,
     delete_note,
+    edit_note,
     list_notes,
     list_notes_in_folder,
     read_note,
@@ -27,6 +28,7 @@ _create_note = create_note.fn
 _read_note = read_note.fn
 _get_backlinks = get_backlinks.fn
 _update_note = update_note.fn
+_edit_note = edit_note.fn
 _delete_note = delete_note.fn
 _list_notes = list_notes.fn
 _list_notes_in_folder = list_notes_in_folder.fn
@@ -207,6 +209,68 @@ class TestUpdateNote:
 
         with pytest.raises(ToolError, match="Note already exists at 'note2'"):
             _update_note("note1", new_path="note2")
+
+
+class TestEditNote:
+    """Tests for edit_note tool."""
+
+    def test_edit_note_single_match(self, mock_config: Config):
+        """Test editing a single occurrence."""
+        _create_note(path="editable", title="Editable", content="Hello world")
+
+        result = _edit_note("editable", "world", "there")
+
+        assert "Edited note at 'editable'" in result
+        assert "1 replacement" in result
+
+        # Verify the change
+        note = _read_note("editable")
+        assert note["content"] == "Hello there"
+
+    def test_edit_note_replace_all(self, mock_config: Config):
+        """Test editing with replace_all."""
+        _create_note(path="multi", title="Multi", content="foo bar foo baz foo")
+
+        result = _edit_note("multi", "foo", "qux", replace_all=True)
+
+        assert "3 replacements" in result
+
+        note = _read_note("multi")
+        assert note["content"] == "qux bar qux baz qux"
+
+    def test_edit_note_not_found(self, mock_config: Config):
+        """Test editing a nonexistent note raises ToolError."""
+        with pytest.raises(ToolError, match="Note not found: 'nonexistent'"):
+            _edit_note("nonexistent", "old", "new")
+
+    def test_edit_note_string_not_found(self, mock_config: Config):
+        """Test error when string not found."""
+        _create_note(path="test", title="Test", content="Hello world")
+
+        with pytest.raises(ToolError, match="String not found"):
+            _edit_note("test", "nonexistent", "replacement")
+
+    def test_edit_note_multiple_matches_error(self, mock_config: Config):
+        """Test error when multiple matches without replace_all."""
+        _create_note(path="test", title="Test", content="foo bar foo")
+
+        with pytest.raises(ToolError, match="Multiple matches"):
+            _edit_note("test", "foo", "baz")
+
+    def test_edit_note_empty_old_string(self, mock_config: Config):
+        """Test error when old_string is empty."""
+        _create_note(path="test", title="Test", content="Hello")
+
+        with pytest.raises(ToolError, match="cannot be empty"):
+            _edit_note("test", "", "new")
+
+    def test_edit_note_no_change(self, mock_config: Config):
+        """Test no-op when old_string equals new_string."""
+        _create_note(path="test", title="Test", content="Hello world")
+
+        result = _edit_note("test", "world", "world")
+
+        assert "No changes made" in result
 
 
 class TestDeleteNote:

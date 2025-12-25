@@ -37,6 +37,14 @@ class RebuildResult:
     backlinks_index_rebuilt: bool
 
 
+@dataclass
+class EditResult:
+    """Result of an edit operation."""
+
+    note: Note
+    replacements: int
+
+
 class NoteService:
     """Service layer for note operations.
 
@@ -305,6 +313,81 @@ class NoteService:
                 self.git.commit_change(path, "delete", author=author)
                 return DeleteResult(deleted=True, backlinks_warning=backlinks_warning)
             return DeleteResult(deleted=False)
+
+    def edit_note(
+        self,
+        path: str,
+        old_string: str,
+        new_string: str,
+        replace_all: bool = False,
+        author: str | None = None,
+    ) -> EditResult | None:
+        """Edit a note by replacing a specific string.
+
+        Performs targeted string replacement within the note's content,
+        similar to Claude Code's Edit tool.
+
+        Args:
+            path: The path/identifier of the note
+            old_string: The exact string to find and replace
+            new_string: The replacement string
+            replace_all: If True, replace all occurrences; if False (default),
+                require exactly one match
+            author: Optional author name for version history
+
+        Returns:
+            EditResult with the note and replacement count, or None if not found
+
+        Raises:
+            ValueError: If old_string is empty, not found, or has multiple matches
+                when replace_all is False
+        """
+        if not old_string:
+            raise ValueError("old_string cannot be empty")
+
+        with self._lock.write_lock():
+            note = self.storage.load(path)
+            if note is None:
+                return None
+
+            # Count occurrences
+            count = note.content.count(old_string)
+
+            if count == 0:
+                raise ValueError(f"String not found in note: '{old_string[:50]}...'")
+
+            if count > 1 and not replace_all:
+                raise ValueError(
+                    f"Multiple matches ({count}) found. Use replace_all=True to replace all, "
+                    "or provide a more specific string."
+                )
+
+            # No-op if strings are equal
+            if old_string == new_string:
+                return EditResult(note=note, replacements=0)
+
+            # Perform replacement
+            if replace_all:
+                note.content = note.content.replace(old_string, new_string)
+                replacements = count
+            else:
+                note.content = note.content.replace(old_string, new_string, 1)
+                replacements = 1
+
+            note.updated_at = datetime.now()
+
+            # Save and update indexes
+            self.storage.save(note)
+            self.index.index_note(note)
+
+            # Update backlinks if content changed
+            links = extract_links(note.content)
+            self.backlinks.update_note_links(path, links)
+
+            # Commit to git
+            self.git.commit_change(path, "update", author=author)
+
+            return EditResult(note=note, replacements=replacements)
 
     def list_notes(self) -> list[str]:
         """List all note paths.
