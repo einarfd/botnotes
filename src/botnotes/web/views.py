@@ -81,6 +81,20 @@ def search_results(request: Request, q: str = "") -> HTMLResponse:
     )
 
 
+@router.get("/search", response_class=HTMLResponse)
+def search_page(request: Request) -> HTMLResponse:
+    """Dedicated search page."""
+    service = _get_service()
+    paths = service.list_notes()
+    notes = [service.read_note(p) for p in paths]
+    notes = [n for n in notes if n]
+    return templates.TemplateResponse(
+        request=request,
+        name="notes_list.html",
+        context={"notes": notes},
+    )
+
+
 @router.get("/new", response_class=HTMLResponse)
 def new_note_form(request: Request) -> HTMLResponse:
     """Show new note form."""

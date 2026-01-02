@@ -453,6 +453,24 @@ class TestHTMLViews:
         assert response.status_code == 200
         assert "Searchable" in response.text
 
+    def test_search_page(self, client: TestClient):
+        """Test the dedicated search page."""
+        client.post(
+            "/api/notes",
+            json={"path": "note1", "title": "First Note", "content": "content"},
+        )
+        client.post(
+            "/api/notes",
+            json={"path": "note2", "title": "Second Note", "content": "content"},
+        )
+
+        response = client.get("/search")
+
+        assert response.status_code == 200
+        assert "First Note" in response.text
+        assert "Second Note" in response.text
+        assert 'id="search"' in response.text  # Search input is present
+
     def test_folder_view_top_level(self, client: TestClient):
         """Test viewing top-level notes and subfolders."""
         client.post("/api/notes", json={"path": "top1", "title": "Top 1", "content": ""})
